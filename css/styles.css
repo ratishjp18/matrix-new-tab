@@ -49,6 +49,39 @@ body {
 }
 
 /* ============================================================
+   Digital clock
+   ============================================================ */
+.matrix-clock {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  z-index: 5;
+  user-select: none;
+}
+
+.matrix-clock__time {
+  font-family: monospace;
+  font-size: clamp(2rem, 4.5vw, 4rem);
+  font-weight: 400;
+  color: rgba(0, 255, 65, 0.70);
+  text-shadow: 0 0 18px rgba(0, 255, 65, 0.50), 0 0 40px rgba(0, 255, 65, 0.25);
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.matrix-clock__date {
+  font-family: monospace;
+  font-size: clamp(0.65rem, 1.2vw, 0.95rem);
+  color: rgba(0, 255, 65, 0.42);
+  letter-spacing: 0.18em;
+  margin-top: 6px;
+  text-transform: uppercase;
+}
+
+/* ============================================================
    Main layout
    ============================================================ */
 .main {
@@ -406,7 +439,7 @@ body:hover .settings-toggle,
 
 .btn-group { display: flex; gap: 6px; }
 
-.size-btn, .bgspeed-btn, .glow-btn {
+.size-btn, .bgspeed-btn, .glow-btn, .raincolor-btn, .charset-btn, .density-btn, .labels-btn {
   flex: 1; padding: 7px 8px; border-radius: 9px;
   background: rgba(0, 255, 65, 0.05);
   border: 1px solid rgba(0, 255, 65, 0.12);
@@ -414,13 +447,28 @@ body:hover .settings-toggle,
   font-size: 0.76rem; font-family: monospace; cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
-.size-btn:hover, .bgspeed-btn:hover, .glow-btn:hover {
+.size-btn:hover, .bgspeed-btn:hover, .glow-btn:hover,
+.raincolor-btn:hover, .charset-btn:hover, .density-btn:hover, .labels-btn:hover {
   background: rgba(0, 255, 65, 0.12); color: rgba(0, 255, 65, 0.90);
 }
-.size-btn.active, .bgspeed-btn.active, .glow-btn.active {
+.size-btn.active, .bgspeed-btn.active, .glow-btn.active,
+.charset-btn.active, .density-btn.active, .labels-btn.active {
   background: rgba(0, 255, 65, 0.18);
   border-color: rgba(0, 255, 65, 0.55);
   color: #00ff41;
+}
+
+/* Rain colour active states */
+.raincolor-btn.active[data-color="green"]  { background:rgba(0,255,65,0.20);  border-color:rgba(0,255,65,0.60);  color:#00ff41; }
+.raincolor-btn.active[data-color="blue"]   { background:rgba(0,160,255,0.20); border-color:rgba(0,160,255,0.60); color:#00aaff; }
+.raincolor-btn.active[data-color="red"]    { background:rgba(255,32,32,0.20); border-color:rgba(255,32,32,0.60); color:#ff2020; }
+.raincolor-btn.active[data-color="white"]  { background:rgba(210,210,210,0.18);border-color:rgba(210,210,210,0.55);color:#cccccc; }
+.raincolor-btn.active[data-color="purple"] { background:rgba(160,0,255,0.20); border-color:rgba(160,0,255,0.60); color:#aa44ff; }
+
+/* Always-on tile labels */
+body.labels-always .tile__tooltip {
+  opacity: 0.80;
+  transform: translateX(-50%) translateY(0);
 }
 
 .btn-danger {
