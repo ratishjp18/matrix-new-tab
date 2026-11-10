@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Matrix New Tab",
+  "version": "1.0.0",
+  "description": "A Chrome new tab page with an animated Matrix code rain background and app shortcuts.",
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "permissions": [
+    "storage",
+    "windows"
+  ],
+  "icons": {
+    "16":  "icons/icon16.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

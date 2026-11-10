@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" data-bg-speed="fast">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Tab</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Layer 0: Matrix code rain canvas -->
+  <canvas id="matrix" aria-hidden="true"></canvas>
+
+  <!-- Layer 1: pages -->
+  <main class="main">
+    <div id="pages-container" class="pages-container">
+      <div id="pages-track" class="pages-track"></div>
+    </div>
+    <nav id="page-dots" class="page-dots" aria-label="Page navigation"></nav>
+    <div id="page-counter" class="page-counter" aria-live="polite"></div>
+  </main>
+
+  <!-- Settings toggle -->
+  <button id="settings-toggle" class="settings-toggle" aria-label="Open settings" title="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
+               a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
+               A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
+               l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
+               A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
+               l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
+               a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
+               l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
+               a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  </button>
+
+  <!-- Settings panel -->
+  <aside id="settings-panel" class="settings-panel" role="dialog"
+         aria-label="Settings" aria-modal="true">
+    <div class="settings-header">
+      <h2>Settings</h2>
+      <button id="settings-close" class="settings-close" aria-label="Close settings">&#x2715;</button>
+    </div>
+    <div class="settings-body">
+
+      <section class="settings-section">
+        <h3>Tile Size</h3>
+        <div class="btn-group">
+          <button class="size-btn" data-size="medium">Medium</button>
+          <button class="size-btn active" data-size="large">Large</button>
+          <button class="size-btn" data-size="xlarge">X-Large</button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Rain Speed</h3>
+        <div class="btn-group">
+          <button class="bgspeed-btn" data-bgspeed="slow">Slow</button>
+          <button class="bgspeed-btn" data-bgspeed="normal">Normal</button>
+          <button class="bgspeed-btn active" data-bgspeed="fast">Fast</button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Glow</h3>
+        <div class="btn-group">
+          <button class="glow-btn active" data-glow="on">On</button>
+          <button class="glow-btn" data-glow="off">Off</button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <button id="reset-btn" class="btn-danger">Reset to Defaults</button>
+      </section>
+
+    </div>
+  </aside>
+
+  <!-- Quick search bar -->
+  <div id="quick-search" class="quick-search" role="search" aria-label="Quick search">
+    <div class="quick-search__inner">
+      <svg class="quick-search__icon" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input id="quick-search-input" class="quick-search__input"
+             type="text" placeholder="Search Google…"
+             autocomplete="off" spellcheck="false">
+      <kbd class="quick-search__esc">ESC</kbd>
+    </div>
+  </div>
+
+  <script src="js/matrix.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
