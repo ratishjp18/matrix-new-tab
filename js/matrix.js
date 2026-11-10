@@ -129,7 +129,7 @@
     const fontSize   = Math.round(11 + depth * 7);        // 11–18 px
     const opacitySc  = 0.40 + depth * 0.60;               // dimmer far away
     const speedBase  = (0.30 + depth * 1.10) * (0.80 + Math.random() * 0.40);
-    const trailLen   = 8 + Math.floor(Math.random() * 24);
+    const trailLen   = 6 + Math.floor(Math.random() * 14);  // 6–20 (was 8–32)
 
     return {
       x:          baseX + (Math.random() - 0.5) * 4,      // slight x jitter
@@ -244,13 +244,12 @@
     updateFlicker(dtSec);
     updateKonami(dtSec);
 
-    // Fade to black (trail decay)
-    const fade = Math.max(0.03, 0.055 / Math.max(m, 0.3));
+    // Fade to black — increases WITH speed so trail length stays consistent
+    const fade = 0.04 + m * 0.025;   // slow≈0.05  normal≈0.065  fast≈0.10
     ctx.fillStyle = `rgba(0,0,0,${fade})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Sort back-to-front by depth so deeper columns render first
-    columns.sort((a, b) => a.depth - b.depth);
+    // No sort needed — depth variation is per-column opacity, not draw-order dependent
 
     columns.forEach(col => {
       const { fontSize: fs, opacitySc, bright } = col;
@@ -322,7 +321,7 @@
       if (col.y * fs > canvas.height + col.trailLen * fs * 2 && Math.random() > 0.97) {
         col.y        = -col.trailLen - Math.random() * 30;
         col.chars    = {};
-        col.trailLen = 8 + Math.floor(Math.random() * 24);
+        col.trailLen = 6 + Math.floor(Math.random() * 14);
         col.bright   = Math.random() > 0.88;
       }
     });
