@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#000000">
   <title>New Tab</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -11,7 +12,13 @@
   <!-- Layer 0: Matrix code rain canvas -->
   <canvas id="matrix" aria-hidden="true"></canvas>
 
-  <!-- Layer 1: pages -->
+  <!-- Layer 1: Clock widget (between tile rows) -->
+  <div id="matrix-clock" class="matrix-clock" aria-live="polite" aria-label="Current time">
+    <div id="clock-time" class="matrix-clock__time">00:00:00</div>
+    <div id="clock-date" class="matrix-clock__date">MON 01 JAN 2026</div>
+  </div>
+
+  <!-- Layer 2: pages -->
   <main class="main">
     <div id="pages-container" class="pages-container">
       <div id="pages-track" class="pages-track"></div>
@@ -65,10 +72,48 @@
       </section>
 
       <section class="settings-section">
+        <h3>Rain Colour</h3>
+        <div class="btn-group">
+          <button class="raincolor-btn active" data-color="green">Green</button>
+          <button class="raincolor-btn" data-color="blue">Blue</button>
+          <button class="raincolor-btn" data-color="red">Red</button>
+          <button class="raincolor-btn" data-color="white">White</button>
+          <button class="raincolor-btn" data-color="purple">Purple</button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Characters</h3>
+        <div class="btn-group">
+          <button class="charset-btn active" data-charset="mixed">Mixed</button>
+          <button class="charset-btn" data-charset="katakana">Kana</button>
+          <button class="charset-btn" data-charset="latin">Latin</button>
+          <button class="charset-btn" data-charset="numbers">0-9</button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Density</h3>
+        <div class="btn-group">
+          <button class="density-btn" data-density="sparse">Sparse</button>
+          <button class="density-btn active" data-density="normal">Normal</button>
+          <button class="density-btn" data-density="dense">Dense</button>
+        </div>
+      </section>
+
+      <section class="settings-section">
         <h3>Glow</h3>
         <div class="btn-group">
           <button class="glow-btn active" data-glow="on">On</button>
           <button class="glow-btn" data-glow="off">Off</button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Tile Labels</h3>
+        <div class="btn-group">
+          <button class="labels-btn active" data-labels="hover">On Hover</button>
+          <button class="labels-btn" data-labels="always">Always</button>
         </div>
       </section>
 

@@ -7,7 +7,7 @@
 (function () {
   'use strict';
 
-  const STORAGE_VERSION = 1;
+  const STORAGE_VERSION = 2;   // bumped — new settings added
   const COLS            = 6;
   const ROWS            = 2;
   const PAGE_SIZE       = COLS * ROWS;
@@ -59,6 +59,10 @@
   let tileSize        = 'large';
   let bgSpeed         = 'fast';
   let glowEnabled     = 'on';
+  let rainColor       = 'green';
+  let charSetKey      = 'mixed';
+  let density         = 'normal';
+  let tileLabels      = 'hover';
   let currentPage     = 0;
   let totalPages      = 0;
   let isTransitioning = false;
@@ -70,14 +74,19 @@
   function loadSettings() {
     return new Promise(resolve => {
       if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.sync.get(['tileSize', 'bgSpeed', 'glowEnabled', 'storageVersion'], data => {
+        chrome.storage.sync.get(['tileSize','bgSpeed','glowEnabled','rainColor','charSetKey','density','tileLabels','storageVersion'], data => {
           if (data.storageVersion !== STORAGE_VERSION) {
             tileSize = 'large'; bgSpeed = 'fast'; glowEnabled = 'on';
-            chrome.storage.sync.clear(() => chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, storageVersion: STORAGE_VERSION }));
+            rainColor = 'green'; charSetKey = 'mixed'; density = 'normal'; tileLabels = 'hover';
+            chrome.storage.sync.clear(() => chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, rainColor, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION }));
           } else {
-            tileSize    = data.tileSize    || 'large';
-            bgSpeed     = data.bgSpeed     || 'fast';
-            glowEnabled = data.glowEnabled || 'on';
+            tileSize   = data.tileSize   || 'large';
+            bgSpeed    = data.bgSpeed    || 'fast';
+            glowEnabled= data.glowEnabled|| 'on';
+            rainColor  = data.rainColor  || 'green';
+            charSetKey = data.charSetKey || 'mixed';
+            density    = data.density    || 'normal';
+            tileLabels = data.tileLabels || 'hover';
           }
           resolve();
         });
@@ -87,7 +96,7 @@
 
   function saveSettings() {
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, storageVersion: STORAGE_VERSION });
+      chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, rainColor, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION });
     }
   }
 
@@ -315,6 +324,33 @@
     saveSettings();
   }));
 
+  // Rain colour
+  document.querySelectorAll('.raincolor-btn').forEach(btn => btn.addEventListener('click', () => {
+    rainColor = btn.dataset.color;
+    document.querySelectorAll('.raincolor-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.dispatchEvent(new CustomEvent('matrixColorChange', { detail: rainColor }));
+    saveSettings();
+  }));
+
+  // Character set
+  document.querySelectorAll('.charset-btn').forEach(btn => btn.addEventListener('click', () => {
+    charSetKey = btn.dataset.charset;
+    document.querySelectorAll('.charset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.dispatchEvent(new CustomEvent('matrixCharsetChange', { detail: charSetKey }));
+    saveSettings();
+  }));
+
+  // Density
+  document.querySelectorAll('.density-btn').forEach(btn => btn.addEventListener('click', () => {
+    density = btn.dataset.density;
+    document.querySelectorAll('.density-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.dispatchEvent(new CustomEvent('matrixDensityChange', { detail: density }));
+    saveSettings();
+  }));
+
   // Glow toggle
   document.querySelectorAll('.glow-btn').forEach(btn => btn.addEventListener('click', () => {
     glowEnabled = btn.dataset.glow;
@@ -324,10 +360,20 @@
     saveSettings();
   }));
 
+  // Tile labels
+  document.querySelectorAll('.labels-btn').forEach(btn => btn.addEventListener('click', () => {
+    tileLabels = btn.dataset.labels;
+    document.querySelectorAll('.labels-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyTileLabels();
+    saveSettings();
+  }));
+
   // Reset
   document.getElementById('reset-btn').addEventListener('click', () => {
     if (!confirm('Reset all settings to defaults?')) return;
     tileSize = 'large'; bgSpeed = 'fast'; glowEnabled = 'on';
+    rainColor = 'green'; charSetKey = 'mixed'; density = 'normal'; tileLabels = 'hover';
     saveSettings(); applySettingsToUI(); buildPages();
   });
 
@@ -335,8 +381,20 @@
     document.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('active', b.dataset.size === tileSize));
     document.querySelectorAll('.bgspeed-btn').forEach(b => b.classList.toggle('active', b.dataset.bgspeed === bgSpeed));
     document.querySelectorAll('.glow-btn').forEach(b => b.classList.toggle('active', b.dataset.glow === glowEnabled));
+    document.querySelectorAll('.raincolor-btn').forEach(b => b.classList.toggle('active', b.dataset.color === rainColor));
+    document.querySelectorAll('.charset-btn').forEach(b => b.classList.toggle('active', b.dataset.charset === charSetKey));
+    document.querySelectorAll('.density-btn').forEach(b => b.classList.toggle('active', b.dataset.density === density));
+    document.querySelectorAll('.labels-btn').forEach(b => b.classList.toggle('active', b.dataset.labels === tileLabels));
     document.documentElement.dataset.bgSpeed = bgSpeed;
-    document.dispatchEvent(new CustomEvent('matrixGlowChange', { detail: glowEnabled }));
+    document.dispatchEvent(new CustomEvent('matrixGlowChange',    { detail: glowEnabled }));
+    document.dispatchEvent(new CustomEvent('matrixColorChange',   { detail: rainColor   }));
+    document.dispatchEvent(new CustomEvent('matrixCharsetChange', { detail: charSetKey  }));
+    document.dispatchEvent(new CustomEvent('matrixDensityChange', { detail: density     }));
+    applyTileLabels();
+  }
+
+  function applyTileLabels() {
+    document.body.classList.toggle('labels-always', tileLabels === 'always');
   }
 
   /* ----------------------------------------------------------
@@ -424,6 +482,28 @@
     buildPages();
     setupNavigation();
     showScrollHint();
+    startClock();
+  }
+
+  /* ----------------------------------------------------------
+     Digital clock
+  ---------------------------------------------------------- */
+  function startClock() {
+    const timeEl = document.getElementById('clock-time');
+    const dateEl = document.getElementById('clock-date');
+    if (!timeEl || !dateEl) return;
+
+    const DAYS   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+    const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const pad    = n => String(n).padStart(2, '0');
+
+    function tick() {
+      const now = new Date();
+      timeEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      dateEl.textContent = `${DAYS[now.getDay()]} ${pad(now.getDate())} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+    }
+    tick();
+    setInterval(tick, 1000);
   }
 
   init();
