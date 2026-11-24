@@ -60,7 +60,7 @@
   let bgSpeed         = 'fast';
   let glowEnabled     = 'off';
   let rainColor       = 'green';
-  let charSetKey      = 'auto';
+  let charSetKey      = 'classic';
   let density         = 'dense';
   let tileLabels      = 'hover';
   let currentPage     = 0;
@@ -77,14 +77,14 @@
         chrome.storage.sync.get(['tileSize','bgSpeed','glowEnabled','rainColor','charSetKey','density','tileLabels','storageVersion'], data => {
           if (data.storageVersion !== STORAGE_VERSION) {
             tileSize = 'large'; bgSpeed = 'fast'; glowEnabled = 'off';
-            rainColor = 'green'; charSetKey = 'auto'; density = 'dense'; tileLabels = 'hover';
+            rainColor = 'green'; charSetKey = 'classic'; density = 'dense'; tileLabels = 'hover';
             chrome.storage.sync.clear(() => chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, rainColor, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION }));
           } else {
             tileSize   = data.tileSize   || 'large';
             bgSpeed    = data.bgSpeed    || 'fast';
             glowEnabled= data.glowEnabled|| 'off';
             rainColor  = data.rainColor  || 'green';
-            charSetKey = data.charSetKey || 'auto';
+            charSetKey = data.charSetKey || 'classic';
             density    = data.density    || 'dense';
             tileLabels = data.tileLabels || 'hover';
           }
@@ -373,7 +373,7 @@
   document.getElementById('reset-btn').addEventListener('click', () => {
     if (!confirm('Reset all settings to defaults?')) return;
     tileSize = 'large'; bgSpeed = 'fast'; glowEnabled = 'off';
-    rainColor = 'green'; charSetKey = 'auto'; density = 'dense'; tileLabels = 'hover';
+    rainColor = 'green'; charSetKey = 'classic'; density = 'dense'; tileLabels = 'hover';
     saveSettings(); applySettingsToUI(); buildPages();
   });
 
