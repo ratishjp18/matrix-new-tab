@@ -1,28 +1,28 @@
 /* ============================================================
-   Matrix Digital Rain — state-based grid renderer
+   Matrix Digital Rain — state-based grid renderer  v3
    ─────────────────────────────────────────────────────────────
-   Architecture (replaces cumulative-overlay approach):
+   RENDERING MODEL
+   ───────────────
+   gChar[c*rows+r]   — character stored at each grid cell
+   gBright[c*rows+r] — brightness [0,1] stored at each cell
 
-   • A flat grid  gChar[c*rows+r]   holds one character per cell.
-   • A flat grid  gBright[c*rows+r] holds its brightness [0,1].
-   • Every frame:
-       1. canvas is cleared to pure #000000  (no overlay fade)
-       2. stream heads advance and stamp brightness=1 on new cells
-       3. every cell is rendered ONCE at its current brightness
-       4. every cell's brightness is multiplied by DECAY
-   • Fading is numeric state change, not repeated canvas painting.
-   • DPR-aware backing resolution for crisp text on all screens.
+   Every frame:
+     1. Canvas cleared to pure #000000
+     2. Active stream heads advance; current head cell is stamped
+        to brightness 1.0 every frame (not just on cell entry)
+     3. Every cell rendered exactly once at its brightness
+     4. Every brightness multiplied by DECAY (fades toward black)
 
-   Settings (custom DOM events dispatched by app.js):
-     matrixColorChange   → rebuild colour LUT
-     matrixCharsetChange → refresh all cell characters
-     matrixDensityChange → reinitialise streams
-     matrixGlowChange    → stored (glow not applied per spec)
-     matrixBgSpeedChange → restart loop
-     data-bg-speed attr  → speed multiplier
+   Cells START at 0 (black). Visible characters only appear when
+   a stream passes through. No static pre-filled background grid.
 
-   Preserved extras:
-     Mouse repel · Click-to-boost · Konami code · Neo messages
+   WARM START: half the streams are seeded mid-screen with
+   pre-computed trail brightnesses so animation is visible
+   immediately on page load.
+
+   Settings events (from app.js):
+     matrixColorChange   matrixCharsetChange  matrixDensityChange
+     matrixGlowChange    matrixBgSpeedChange
    ============================================================ */
 
 (function () {
@@ -31,20 +31,14 @@
   /* ============================================================
      CONSTANTS
      ============================================================ */
-  const CELL   = 25;      // grid cell size in CSS px (width AND height)
-  const FSIZE  = 24;      // font-size in CSS px  (must be < CELL)
-  const FONT   = `400 ${FSIZE}px Consolas, "Courier New", monospace`;
+  const CELL  = 25;    // grid cell size, CSS px (width AND height)
+  const FSIZE = 24;    // font-size, CSS px
+  const FONT  = `400 ${FSIZE}px Consolas, "Courier New", monospace`;
 
-  /* Brightness model
-     ─────────────────
-     DECAY    — per-frame multiplier applied to every cell's brightness.
-                0.88 at 60 fps ⇒ trail of ~18–20 cells at speed 1.
-     AMBIENT  — floor value; cells never go below this, keeping a faint
-                background grid visible at all times (≈ #001A00 for green).
-     THRESH   — minimum brightness to bother rendering (skip near-black).  */
-  const DECAY   = 0.88;
-  const AMBIENT = 0.10;   // ≈ rgb(0,26,0) = #001A00  (faint)
-  const THRESH  = 0.04;   // below this skip fillText entirely
+  const DECAY = 0.92;  // per-frame brightness multiplier (0.92 → ~40-cell trail at 60fps)
+  const FLOOR = 0.06;  // brightness floor applied ONLY to previously-activated cells
+                       // keeps a faint residue after stream passes (≈ #000F00 for green)
+  const THRESH = 0.04; // below this, skip fillText (pure black)
 
   /* ============================================================
      CHARACTER SETS
@@ -56,17 +50,8 @@
   };
 
   /* ============================================================
-     COLOUR THEMES
-     Each theme defined as [R, G, B] at brightness = 1.0.
-     Colour at brightness b = rgb( R*b, G*b, B*b ).
-     This gives natural linear fading to black at b=0.
-
-     Reference palette for green theme (linear scale):
-       b=1.00 → rgb(0,255,0)  = #00FF00  bright
-       b=0.60 → rgb(0,153,0)  = #009900  medium
-       b=0.27 → rgb(0, 68,0)  = #004400  dim
-       b=0.10 → rgb(0, 26,0)  = #001A00  faint  ← AMBIENT
-       b=0.00 → rgb(0,  0,0)  = #000000  background
+     COLOUR THEMES — [R, G, B] at brightness = 1.0
+     colour at b = rgb( R*b, G*b, B*b )
      ============================================================ */
   const THEME_MAX = {
     green:   [  0, 255,   0],
@@ -86,22 +71,15 @@
     violet:  [138,  43, 226],
   };
 
-  /* Grayscale LUT for Konami override — computed once */
+  /* Grayscale LUT for Konami override — fixed, computed once */
   const WHITE_LUT = Array.from({ length: 256 }, (_, i) => `rgb(${i},${i},${i})`);
 
-  /* ============================================================
-     SPEED / DENSITY TABLES
-     ============================================================ */
   const SPEED_MULT   = { slow: 0.30, normal: 1.00, fast: 2.50 };
   const DENSITY_FRAC = { sparse: 0.40, normal: 0.70, dense: 1.00 };
-
-  /* ============================================================
-     EXTRAS (Konami / Neo)
-     ============================================================ */
-  const KONAMI   = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown',
-                    'ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
-  const NEO_MSGS = ['Wake up, Neo...', 'The Matrix has you.',
-                    'Follow the white rabbit.', 'Knock, knock, Neo.', 'Free your mind.'];
+  const KONAMI       = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown',
+                        'ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+  const NEO_MSGS     = ['Wake up, Neo...','The Matrix has you.',
+                        'Follow the white rabbit.','Knock, knock, Neo.','Free your mind.'];
   const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ============================================================
@@ -112,46 +90,41 @@
   const DPR    = window.devicePixelRatio || 1;
 
   let animId = null, lastTime = 0;
-  let viewW = 0, viewH = 0;   // logical (CSS) viewport dimensions
-  let cols  = 0, rows  = 0;   // grid dimensions in cells
+  let viewW = 0, viewH = 0, cols = 0, rows = 0;
 
   /* ============================================================
      GRID STATE
-     Flat arrays indexed by  c * rows + r
+     Index formula: c * rows + r
      ============================================================ */
-  let gChar   = [];           // string  — character for each cell
-  let gBright = null;         // Float32Array — brightness [0,1] for each cell
+  let gChar   = [];    // character string per cell
+  let gBright = null;  // Float32Array, brightness per cell
 
   /* ============================================================
-     STREAM STATE  (one stream per column)
+     STREAM STATE
      ============================================================ */
-  let streams       = [];     // { y, prevY, speed }
-  let streamEnabled = [];     // boolean — whether column has an active stream
+  let streams       = [];   // { y, speed, active }
+  let streamEnabled = [];   // boolean per column
 
   /* ============================================================
-     COLOUR LUT  (256-entry; rebuilt on theme change)
+     COLOUR LUT  (256 entries, rebuilt on theme change)
      ============================================================ */
   let colorLUT = [];
 
   /* ============================================================
-     SETTINGS STATE
+     SETTINGS
      ============================================================ */
   let rainColor  = 'green';
   let charSetKey = 'classic';
   let density    = 'dense';
-  let useGlow    = false;     // stored for event compat; glow not applied per spec
+  let useGlow    = false;   // kept for event compat; not applied per spec
 
   /* ============================================================
-     MOUSE / KONAMI / NEO STATE
+     EXTRAS
      ============================================================ */
   let mouseX = -9999, mouseY = -9999;
-
   let konamiBuffer = [], konamiActive = false, konamiTimer = 0;
-
-  let neoTimer   = 90 + Math.random() * 90;
-  let neoPhase   = 'idle';
-  let neoOpacity = 0;
-  let neoEl      = null;
+  let neoTimer = 90 + Math.random() * 90, neoPhase = 'idle',
+      neoOpacity = 0, neoEl = null;
 
   /* ============================================================
      HELPERS
@@ -166,33 +139,29 @@
     return ch[(Math.random() * ch.length) | 0];
   }
 
-  /* Rebuild the 256-step colour LUT for the current theme */
   function buildColorLUT() {
     const [mr, mg, mb] = THEME_MAX[rainColor] || THEME_MAX.green;
     colorLUT = new Array(256);
     for (let i = 0; i < 256; i++) {
       const b = i / 255;
       colorLUT[i] =
-        `rgb(${(mr * b + 0.5) | 0},${(mg * b + 0.5) | 0},${(mb * b + 0.5) | 0})`;
+        `rgb(${(mr*b+.5)|0},${(mg*b+.5)|0},${(mb*b+.5)|0})`;
     }
   }
 
   /* ============================================================
-     CANVAS / GRID SETUP
+     RESIZE / GRID / STREAMS
      ============================================================ */
   function resize() {
     viewW = window.innerWidth;
     viewH = window.innerHeight;
 
-    /* ── DPR-aware backing resolution ──────────────────────────
-       canvas.width/height = physical pixels (DPR × CSS pixels).
-       canvas.style.width/height keeps the element at CSS size.
-       ctx.setTransform re-applies the DPR scale so every drawing
-       call uses ordinary CSS-pixel coordinates.                  */
+    // Physical backing pixels = logical CSS pixels × DPR
     canvas.width  = Math.round(viewW * DPR);
     canvas.height = Math.round(viewH * DPR);
     canvas.style.width  = viewW + 'px';
     canvas.style.height = viewH + 'px';
+    // All subsequent draw calls use CSS-pixel coordinates
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
     cols = Math.floor(viewW / CELL);
@@ -202,29 +171,60 @@
     initStreams();
   }
 
-  /* Initialise every cell with ambient brightness and a random character */
   function initGrid() {
     const n = cols * rows;
     gChar   = new Array(n);
     gBright = new Float32Array(n);
+    // ALL cells start at brightness=0 (pure black).
+    // Characters are assigned now so they're ready when a stream
+    // stamps them, and for the warm-start pre-seeding below.
     for (let i = 0; i < n; i++) {
       gChar[i]   = rndChar();
-      gBright[i] = AMBIENT + Math.random() * 0.04; // slight random spread
+      gBright[i] = 0;
     }
   }
 
-  /* Initialise stream heads; fraction of columns get active streams */
   function initStreams() {
     const frac = DENSITY_FRAC[density] ?? 1.0;
     streams       = new Array(cols);
     streamEnabled = new Array(cols);
+
     for (let c = 0; c < cols; c++) {
-      const enabled     = Math.random() < frac;
-      streamEnabled[c]  = enabled;
-      const startY      = enabled
-        ? -((Math.random() * rows) | 0)       // staggered start above viewport
-        : -(rows + (Math.random() * rows | 0)); // start further above (delayed)
-      streams[c] = { y: startY, prevY: startY, speed: 0.4 + Math.random() * 1.1 };
+      const enabled = Math.random() < frac;
+      streamEnabled[c] = enabled;
+
+      if (!enabled) {
+        streams[c] = { y: -(rows * 2), speed: 0.4 + Math.random() * 1.1 };
+        continue;
+      }
+
+      const speed = 0.4 + Math.random() * 1.1;
+
+      /* ── Warm start ──────────────────────────────────────────
+         Half the columns seed their stream mid-screen so the
+         animation is visually active from frame 1. The other
+         half start above the viewport for natural stagger.      */
+      if (Math.random() < 0.5) {
+        // Start somewhere in the visible area
+        const headRow = (Math.random() * rows) | 0;
+        streams[c] = { y: headRow, speed };
+
+        // Pre-paint the trail above the head with decayed brightness
+        for (let r = headRow; r >= 0; r--) {
+          const dist  = headRow - r;             // 0 at head, increases upward
+          const b     = Math.pow(DECAY, dist);   // brightness falls off with distance
+          if (b < THRESH) break;                 // too dim, stop pre-seeding
+          const idx = c * rows + r;
+          gBright[idx] = b;
+          // char already randomised in initGrid
+        }
+      } else {
+        // Start above viewport — full natural drop
+        streams[c] = {
+          y:     -((Math.random() * rows) | 0),
+          speed,
+        };
+      }
     }
   }
 
@@ -285,51 +285,53 @@
      DRAW FRAME
      ============================================================ */
   function drawFrame(dt) {
-    const dtSec = dt / 1000;
-    const m     = speedMult();
+    const dtSec   = dt / 1000;
+    const m       = speedMult();
 
     updateNeo(dtSec);
     updateKonami(dtSec);
 
-    /* ── Step 1: clear entire canvas to pure black ─────────────
-       No translucent overlay — the grid's numeric brightness
-       values carry all fade state.                              */
+    /* ── 1. Clear to pure black ─────────────────────────────── */
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, viewW, viewH);
 
-    /* ── Step 2: advance stream heads ─────────────────────────── */
+    /* ── 2. Advance streams ─────────────────────────────────── */
     if (m > 0) {
-      const advance = m * (dt / 16.667);   // rows per frame, normalised to 60 fps
+      const advance = m * (dt / 16.667);  // rows this frame, normalised to 60 fps
+
       for (let c = 0; c < cols; c++) {
         if (!streamEnabled[c]) continue;
         const s = streams[c];
 
+        const prevRow = Math.floor(s.y);
         s.y += s.speed * advance;
+        const currRow = Math.floor(s.y);
 
-        /* Stamp every row the head passed through this frame  */
-        const r0 = Math.floor(s.prevY) + 1;
-        const r1 = Math.floor(s.y);
-        for (let r = r0; r <= r1; r++) {
+        /* Stamp every newly entered row */
+        for (let r = prevRow + 1; r <= currRow; r++) {
           if (r >= 0 && r < rows) {
             const idx    = c * rows + r;
-            gChar[idx]   = rndChar();   // new random character at the head
-            gBright[idx] = 1.0;         // maximum brightness
+            gChar[idx]   = rndChar();
+            gBright[idx] = 1.0;
           }
         }
-        s.prevY = s.y;
 
-        /* Reset stream when its head exits the bottom of the grid */
+        /* Always keep the CURRENT head cell at maximum brightness.
+           Without this re-stamp, the head flickers as DECAY applies
+           between frames whenever the head doesn't cross a row boundary. */
+        if (currRow >= 0 && currRow < rows) {
+          gBright[c * rows + currRow] = 1.0;
+        }
+
+        /* Reset when head exits bottom */
         if (s.y > rows + 2) {
-          s.y = s.prevY = -(1 + Math.random() * 4); // brief pause then restart
+          s.y     = -(1 + Math.random() * 3);   // very short pause, restart quickly
           s.speed = 0.4 + Math.random() * 1.1;
         }
       }
     }
 
-    /* ── Step 3: render all cells + decay brightness ───────────
-       Each cell is drawn exactly once per frame.
-       No shadowBlur, no strokeText, no globalCompositeOperation.
-       Font is set once outside the loop.                        */
+    /* ── 3. Render cells + decay ─────────────────────────────── */
     ctx.font         = FONT;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
@@ -337,10 +339,9 @@
     ctx.shadowColor  = 'transparent';
 
     for (let c = 0; c < cols; c++) {
-      /* Horizontal centre of this column's cell (integer CSS px) */
-      const cx = (c * CELL + (CELL >> 1)) | 0;
+      const cx = (c * CELL + (CELL >> 1)) | 0;  // integer cell centre x
 
-      /* Mouse repel — horizontal proximity */
+      // Mouse-repel horizontal
       const dxM    = Math.abs(cx - mouseX);
       const repelX = dxM < 90 ? dxM / 90 : 1.0;
 
@@ -348,16 +349,15 @@
         const idx = c * rows + r;
         const b   = gBright[idx];
 
-        /* ── Render character ─────────────────────────────────── */
+        /* ── Render ─────────────────────────────────────────── */
         if (b >= THRESH) {
-          const cy = (r * CELL + (CELL >> 1)) | 0;
+          const cy = (r * CELL + (CELL >> 1)) | 0; // integer cell centre y
 
-          /* Mouse repel — vertical proximity */
+          // Mouse-repel vertical
           const dyM    = Math.abs(cy - mouseY);
           const repelY = dyM < 90 ? dyM / 90 : 1.0;
           const repel  = repelX < repelY ? repelX : repelY;
 
-          /* Quantise brightness to 256 levels for LUT lookup */
           const lutIdx = Math.min(255, (b * 255 + 0.5) | 0);
           ctx.fillStyle = konamiActive ? WHITE_LUT[lutIdx] : colorLUT[lutIdx];
 
@@ -370,14 +370,18 @@
           }
         }
 
-        /* ── Decay brightness ─────────────────────────────────── */
-        const nb = b * DECAY;
-        gBright[idx] = nb < AMBIENT ? AMBIENT : nb;
+        /* ── Decay brightness ─────────────────────────────────
+           • If cell was never activated (b === 0): stays black.
+           • If cell was activated: decay toward FLOOR, not to 0.
+             This keeps a faint residue after the stream leaves —
+             the "dim background" texture builds up naturally.    */
+        if (b > 0) {
+          const nb = b * DECAY;
+          gBright[idx] = nb < FLOOR ? FLOOR : nb;
+        }
 
-        /* ── Slow background character mutation ───────────────── */
-        /* Background cells (at or near the ambient floor) slowly
-           change character, keeping the grid visually alive.     */
-        if (nb <= AMBIENT + 0.01 && Math.random() < 0.002) {
+        /* ── Occasional character mutation in mid-trail ──────── */
+        if (b > THRESH && b < 0.8 && Math.random() < 0.012) {
           gChar[idx] = rndChar();
         }
       }
@@ -385,7 +389,7 @@
   }
 
   /* ============================================================
-     ANIMATION LOOP
+     LOOP
      ============================================================ */
   function animate(ts) {
     const dt = Math.min(ts - lastTime, 100);
@@ -421,57 +425,34 @@
   document.addEventListener('visibilitychange', () => {
     document.hidden ? stopLoop() : startLoop();
   });
-
   document.addEventListener('matrixBgSpeedChange', startLoop);
-
-  document.addEventListener('matrixGlowChange', e => {
-    useGlow = e.detail === 'on';  // stored for compat; no visual glow applied per spec
-  });
-
-  document.addEventListener('matrixColorChange', e => {
-    rainColor = e.detail;
-    buildColorLUT();             // rebuild colour LUT for new theme
-  });
-
+  document.addEventListener('matrixGlowChange', e => { useGlow = e.detail === 'on'; });
+  document.addEventListener('matrixColorChange', e => { rainColor = e.detail; buildColorLUT(); });
   document.addEventListener('matrixCharsetChange', e => {
     charSetKey = e.detail;
-    if (gChar) {                 // refresh all cached characters
-      const n = cols * rows;
-      for (let i = 0; i < n; i++) gChar[i] = rndChar();
-    }
+    if (gChar) { const n = cols*rows; for (let i=0;i<n;i++) gChar[i]=rndChar(); }
   });
+  document.addEventListener('matrixDensityChange', e => { density = e.detail; initStreams(); });
 
-  document.addEventListener('matrixDensityChange', e => {
-    density = e.detail;
-    initStreams();               // rebuild stream layout for new density
-  });
-
-  /* Mouse repel */
   document.addEventListener('mousemove',  e => { mouseX = e.clientX; mouseY = e.clientY; });
-  document.addEventListener('mouseleave', ()  => { mouseX = -9999;   mouseY = -9999;     });
+  document.addEventListener('mouseleave', ()  => { mouseX = -9999; mouseY = -9999; });
 
-  /* Click: boost nearest column's stream */
   canvas.addEventListener('click', e => {
     let best = -1, bestDist = Infinity;
     for (let c = 0; c < cols; c++) {
-      const cx = c * CELL + (CELL >> 1);
-      const d  = Math.abs(cx - e.clientX);
+      const d = Math.abs(c * CELL + (CELL >> 1) - e.clientX);
       if (d < bestDist) { bestDist = d; best = c; }
     }
     if (best >= 0) {
-      streamEnabled[best]  = true;
-      streams[best].speed  = Math.min(4.0, (streams[best].speed || 1.0) * 1.8);
+      streamEnabled[best] = true;
+      streams[best].speed = Math.min(4, (streams[best].speed || 1) * 1.8);
     }
   });
 
-  /* Konami code */
   document.addEventListener('keydown', e => {
     konamiBuffer.push(e.key);
     if (konamiBuffer.length > KONAMI.length) konamiBuffer.shift();
-    if (konamiBuffer.join(',') === KONAMI.join(',')) {
-      konamiBuffer = [];
-      triggerKonami();
-    }
+    if (konamiBuffer.join(',') === KONAMI.join(',')) { konamiBuffer=[]; triggerKonami(); }
   });
 
   window.addEventListener('resize', resize);
