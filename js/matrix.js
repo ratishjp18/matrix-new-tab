@@ -1,155 +1,277 @@
 /* ============================================================
-   Matrix New Tab — matrix.js  (enhanced)
+   Matrix New Tab — matrix.js
    ─────────────────────────────────────────────────────────────
-   Features
-   ────────
-   • Depth rain — columns have random depth (font size 11–18 px,
-     varying speed & opacity) for a parallax feel
-   • 5 colour themes  — green / blue / red / white / purple
-   • 4 character sets — mixed / katakana / latin / numbers
-   • 3 density levels — sparse / normal / dense
-   • Phosphor glow    — toggle on/off
-   • CRT flicker      — random brief screen dimming
-   • Mouse repel      — rain fades around the cursor
-   • Click accelerate — clicking a column makes it rush down
-   • Konami code      — ↑↑↓↓←→←→BA → system override flash
-   • Neo messages     — periodic Matrix quotes fade in & out
-   • Pauses when tab is hidden
+   Pure black canvas, crisp 20 px monospace columns, bright
+   #00FF00 leading character fading naturally to dark green then
+   black.  No CRT effects, no scanlines, no green tint.
+
+   Settings-driven (all via custom DOM events from app.js):
+   • 15 colour themes   matrixColorChange
+   • Language charset   matrixCharsetChange
+   • Rain speed         data-bg-speed attribute / matrixBgSpeedChange
+   • Column density     matrixDensityChange
+   • Glow toggle        matrixGlowChange
+
+   Extras preserved:
+   • Mouse repel        columns fade near cursor
+   • Click boost        nearest column accelerates
+   • Konami code        ↑↑↓↓←→←→BA → system override
+   • Neo messages       periodic Matrix quotes
+   • Pauses on hidden   document visibilitychange
    ============================================================ */
 
 (function () {
   'use strict';
 
   /* ============================================================
-     CONFIG
+     CHARACTER SETS  (language-aware)
      ============================================================ */
   const CHAR_SETS = {
-    mixed:    'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789ABCDEFZ@#$%&*',
-    katakana: 'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ',
-    latin:    'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-    numbers:  '0123456789+-*/=<>!?',
+    classic:    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+    katakana:   'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ',
+    cyrillic:   'АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЮЯабвгдежзиклмнопрстуфхцчшщюя0123456789',
+    arabic:     'ابتثجحخدذرزسشصضطظعغفقكلمنهوي٠١٢٣٤٥٦٧٨٩',
+    greek:      'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρστυφχψω0123456789',
+    hebrew:     'אבגדהוזחטיכלמנסעפצקרשת0123456789',
+    thai:       'กขคงจฉชซญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหอฮ0123456789',
+    devanagari: 'अआइईउऊएऐओऔकखगघचछजझटठडढणतथदधनपफबभमयरलवशषसह0123456789',
+    mixed:      'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789ABCDEFZ@#$%&*',
+    latin:      'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    numbers:    '0123456789+-*/=<>!?',
   };
 
+  /* browser locale → charset key */
+  const LANG_MAP = {
+    ja: 'katakana',
+    ru: 'cyrillic', uk: 'cyrillic', bg: 'cyrillic', sr: 'cyrillic', mk: 'cyrillic',
+    ar: 'arabic',   fa: 'arabic',   ur: 'arabic',
+    el: 'greek',
+    he: 'hebrew',   yi: 'hebrew',
+    th: 'thai',
+    hi: 'devanagari', mr: 'devanagari', ne: 'devanagari',
+  };
+  const BROWSER_LANG = (navigator.language || 'en').split('-')[0].toLowerCase();
+
+  /* ============================================================
+     COLOUR THEMES  (15 total)
+     Each theme exposes:
+       head   — CSS colour string for the leading character
+       near   — fn(alpha) → rgba for the 1–3 chars behind head
+       mid    — fn(alpha, relDist) → rgba for mid-trail  (relDist: 0=head, 1=tail)
+       dim    — fn(alpha, relDist) → rgba for tail section
+       glow   — CSS colour used when glow is on
+     ============================================================ */
   const THEMES = {
-    green:  { head: '#c0ffc0', near: a => `rgba(0,255,65,${a})`,        trail: (a,r) => { const g=~~(40+215*(1-r)); return `rgba(0,${g},18,${a})`; },              glow: '#00ff41', scan: 'rgba(0,255,65,0.028)'   },
-    blue:   { head: '#c0dcff', near: a => `rgba(0,160,255,${a})`,       trail: (a,r) => { const g=~~(40+215*(1-r)); return `rgba(0,${g},255,${a})`; },             glow: '#0088ff', scan: 'rgba(0,160,255,0.025)'  },
-    red:    { head: '#ffc0c0', near: a => `rgba(255,32,32,${a})`,        trail: (a,r) => { const g=~~(30+200*(1-r)); return `rgba(${g},0,0,${a})`; },              glow: '#ff0000', scan: 'rgba(255,32,32,0.025)'   },
-    white:  { head: '#ffffff', near: a => `rgba(210,210,210,${a})`,      trail: (a,r) => { const g=~~(30+190*(1-r)); return `rgba(${g},${g},${g},${a})`; },        glow: '#ffffff', scan: 'rgba(200,200,200,0.022)' },
-    purple: { head: '#e0c0ff', near: a => `rgba(160,0,255,${a})`,        trail: (a,r) => { const g=~~(30+200*(1-r)); return `rgba(${~~(g*.5)},0,${g},${a})`; },   glow: '#8800ff', scan: 'rgba(140,0,255,0.025)'   },
+    green:   {
+      head: '#00ff00',
+      near: a    => `rgba(0,230,0,${a})`,
+      mid:  (a,r) => `rgba(0,${~~(45+185*(1-r))},0,${a})`,
+      dim:  (a,r) => `rgba(0,${~~(10+75*(1-r))},0,${a})`,
+      glow: '#00ff00',
+    },
+    blue:    {
+      head: '#00aaff',
+      near: a    => `rgba(0,160,255,${a})`,
+      mid:  (a,r) => `rgba(0,${~~(35+130*(1-r))},${~~(50+170*(1-r))},${a})`,
+      dim:  (a,r) => `rgba(0,${~~(8+55*(1-r))},${~~(15+80*(1-r))},${a})`,
+      glow: '#0088ff',
+    },
+    red:     {
+      head: '#ff2020',
+      near: a    => `rgba(255,32,32,${a})`,
+      mid:  (a,r) => `rgba(${~~(50+185*(1-r))},0,0,${a})`,
+      dim:  (a,r) => `rgba(${~~(10+70*(1-r))},0,0,${a})`,
+      glow: '#ff0000',
+    },
+    white:   {
+      head: '#ffffff',
+      near: a    => `rgba(220,220,220,${a})`,
+      mid:  (a,r) => { const v=~~(45+150*(1-r)); return `rgba(${v},${v},${v},${a})`; },
+      dim:  (a,r) => { const v=~~(8+60*(1-r));   return `rgba(${v},${v},${v},${a})`; },
+      glow: '#ffffff',
+    },
+    purple:  {
+      head: '#cc55ff',
+      near: a    => `rgba(170,0,255,${a})`,
+      mid:  (a,r) => `rgba(${~~(28+95*(1-r))},0,${~~(55+165*(1-r))},${a})`,
+      dim:  (a,r) => `rgba(${~~(7+35*(1-r))},0,${~~(18+68*(1-r))},${a})`,
+      glow: '#8800ff',
+    },
+    cyan:    {
+      head: '#00ffff',
+      near: a    => `rgba(0,255,255,${a})`,
+      mid:  (a,r) => `rgba(0,${~~(45+150*(1-r))},${~~(45+150*(1-r))},${a})`,
+      dim:  (a,r) => `rgba(0,${~~(8+58*(1-r))},${~~(8+58*(1-r))},${a})`,
+      glow: '#00ffff',
+    },
+    orange:  {
+      head: '#ff8800',
+      near: a    => `rgba(255,120,0,${a})`,
+      mid:  (a,r) => `rgba(${~~(50+185*(1-r))},${~~(18+75*(1-r))},0,${a})`,
+      dim:  (a,r) => `rgba(${~~(12+68*(1-r))},${~~(4+28*(1-r))},0,${a})`,
+      glow: '#ff6600',
+    },
+    gold:    {
+      head: '#ffd700',
+      near: a    => `rgba(255,210,0,${a})`,
+      mid:  (a,r) => `rgba(${~~(50+185*(1-r))},${~~(38+145*(1-r))},0,${a})`,
+      dim:  (a,r) => `rgba(${~~(12+68*(1-r))},${~~(10+52*(1-r))},0,${a})`,
+      glow: '#ffc800',
+    },
+    pink:    {
+      head: '#ff44aa',
+      near: a    => `rgba(255,0,128,${a})`,
+      mid:  (a,r) => `rgba(${~~(50+155*(1-r))},0,${~~(28+78*(1-r))},${a})`,
+      dim:  (a,r) => `rgba(${~~(12+58*(1-r))},0,${~~(7+32*(1-r))},${a})`,
+      glow: '#ff0088',
+    },
+    teal:    {
+      head: '#00ddb0',
+      near: a    => `rgba(0,210,170,${a})`,
+      mid:  (a,r) => `rgba(0,${~~(38+140*(1-r))},${~~(28+108*(1-r))},${a})`,
+      dim:  (a,r) => `rgba(0,${~~(8+52*(1-r))},${~~(7+42*(1-r))},${a})`,
+      glow: '#00c8aa',
+    },
+    lime:    {
+      head: '#aaff00',
+      near: a    => `rgba(140,255,0,${a})`,
+      mid:  (a,r) => `rgba(${~~(28+88*(1-r))},${~~(48+170*(1-r))},0,${a})`,
+      dim:  (a,r) => `rgba(${~~(6+32*(1-r))},${~~(12+62*(1-r))},0,${a})`,
+      glow: '#80ff00',
+    },
+    sky:     {
+      head: '#44ccff',
+      near: a    => `rgba(0,180,255,${a})`,
+      mid:  (a,r) => `rgba(0,${~~(38+118*(1-r))},${~~(48+152*(1-r))},${a})`,
+      dim:  (a,r) => `rgba(0,${~~(8+42*(1-r))},${~~(14+58*(1-r))},${a})`,
+      glow: '#00b4ff',
+    },
+    crimson: {
+      head: '#ff2244',
+      near: a    => `rgba(220,20,60,${a})`,
+      mid:  (a,r) => `rgba(${~~(48+152*(1-r))},${~~(4+14*(1-r))},${~~(8+28*(1-r))},${a})`,
+      dim:  (a,r) => `rgba(${~~(12+58*(1-r))},0,${~~(2+10*(1-r))},${a})`,
+      glow: '#dc143c',
+    },
+    amber:   {
+      head: '#ffb300',
+      near: a    => `rgba(255,180,0,${a})`,
+      mid:  (a,r) => `rgba(${~~(50+185*(1-r))},${~~(28+118*(1-r))},0,${a})`,
+      dim:  (a,r) => `rgba(${~~(12+68*(1-r))},${~~(7+42*(1-r))},0,${a})`,
+      glow: '#ffaa00',
+    },
+    violet:  {
+      head: '#9944ff',
+      near: a    => `rgba(140,40,230,${a})`,
+      mid:  (a,r) => `rgba(${~~(28+78*(1-r))},${~~(8+28*(1-r))},${~~(48+140*(1-r))},${a})`,
+      dim:  (a,r) => `rgba(${~~(7+28*(1-r))},${~~(2+8*(1-r))},${~~(16+56*(1-r))},${a})`,
+      glow: '#8a2be2',
+    },
   };
 
+  /* ============================================================
+     CONSTANTS
+     ============================================================ */
+  const FONT_SIZE    = 20;   // px — fixed for all columns (spec: 20–24 px)
   const SPEED_MULT   = { slow: 0.30, normal: 1.00, fast: 2.50 };
   const DENSITY_FRAC = { sparse: 0.35, normal: 0.65, dense: 1.00 };
-
-  const KONAMI   = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
-  const NEO_MSGS = ['Wake up, Neo...', 'The Matrix has you.', 'Follow the white rabbit.', 'Knock, knock, Neo.', 'Free your mind.'];
-
+  const KONAMI       = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown',
+                        'ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+  const NEO_MSGS     = ['Wake up, Neo...','The Matrix has you.',
+                        'Follow the white rabbit.','Knock, knock, Neo.','Free your mind.'];
   const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  /* ============================================================ */
 
+  /* ============================================================
+     STATE
+     ============================================================ */
   const canvas = document.getElementById('matrix');
   const ctx    = canvas.getContext('2d');
 
   let animId   = null;
   let lastTime = 0;
   let columns  = [];
+  let colWidth = 12;   // measured in resize() — actual glyph advance width + 1 px gap
 
-  /* -- Configurable state (driven by settings events) -- */
-  let useGlow    = true;
+  /* -- Settings (driven by events from app.js) -- */
+  let useGlow    = false;
   let rainColor  = 'green';
-  let charSetKey = 'mixed';
-  let density    = 'normal';
+  let charSetKey = 'auto';
+  let density    = 'dense';
 
-  /* -- Mouse -- */
+  /* -- Mouse repel -- */
   let mouseX = -9999, mouseY = -9999;
-
-  /* -- Click-to-accelerate -- */
-  // stored per-column in col.boostTimer
 
   /* -- Konami -- */
   let konamiBuffer = [];
   let konamiActive = false;
   let konamiTimer  = 0;
 
-  /* -- CRT flicker -- */
-  let flickerTimer  = 8 + Math.random() * 20;
-  let flickerActive = false;
-  let flickerFrames = 0;
-
-  /* -- Neo message -- */
+  /* -- Neo overlay -- */
   let neoTimer   = 90 + Math.random() * 90;
-  let neoPhase   = 'idle';          // idle | fadein | show | fadeout
+  let neoPhase   = 'idle';   // idle | fadein | show | fadeout
   let neoOpacity = 0;
   let neoEl      = null;
 
-  /* ----------------------------------------------------------
-     Speed helper
-  ---------------------------------------------------------- */
-  function mult() {
+  /* ============================================================
+     HELPERS
+     ============================================================ */
+  function speedMult() {
     if (REDUCED_MOTION) return 0;
-    const s = document.documentElement.dataset.bgSpeed || 'fast';
-    return SPEED_MULT[s] ?? 1.0;
+    return SPEED_MULT[document.documentElement.dataset.bgSpeed || 'fast'] ?? 1.0;
   }
 
-  /* ----------------------------------------------------------
-     Random character from current set
-  ---------------------------------------------------------- */
   function rndChar() {
-    const ch = CHAR_SETS[charSetKey] || CHAR_SETS.mixed;
+    let key = charSetKey;
+    if (key === 'auto') key = LANG_MAP[BROWSER_LANG] || 'classic';
+    const ch = CHAR_SETS[key] || CHAR_SETS.classic;
     return ch[Math.floor(Math.random() * ch.length)];
   }
 
-  /* ----------------------------------------------------------
-     Canvas resize
-  ---------------------------------------------------------- */
+  /* ============================================================
+     CANVAS / COLUMN SETUP
+     ============================================================ */
   function resize() {
     canvas.width  = window.innerWidth;
     canvas.height = window.innerHeight;
+
+    /* Measure the actual monospace glyph advance width so columns
+       are packed exactly as tight as the font renders them.       */
+    ctx.font = `${FONT_SIZE}px monospace`;
+    colWidth  = Math.round(ctx.measureText('W').width) + 1;   // +1 px gap between columns
+
     initColumns();
   }
 
-  /* ----------------------------------------------------------
-     Initialise columns with depth variation
-  ---------------------------------------------------------- */
   function initColumns() {
     columns = [];
-    const W    = canvas.width;
-    const frac = DENSITY_FRAC[density] ?? 0.65;
-    const BASE_COL = 16; // base column width
+    const frac     = DENSITY_FRAC[density] ?? 1.0;
+    const colCount = Math.floor(canvas.width / colWidth);
 
-    for (let xi = 0; xi < Math.floor(W / BASE_COL); xi++) {
+    for (let i = 0; i < colCount; i++) {
       if (Math.random() > frac) continue;
-      columns.push(newColumn(xi * BASE_COL));
+      columns.push(newColumn(i * colWidth));
     }
   }
 
-  function newColumn(baseX) {
-    // Depth: 0 = far/background, 1 = near/foreground
-    const depth      = Math.random();
-    const fontSize   = Math.round(11 + depth * 7);        // 11–18 px
-    const opacitySc  = 0.40 + depth * 0.60;               // dimmer far away
-    const speedBase  = (0.30 + depth * 1.10) * (0.80 + Math.random() * 0.40);
-    const trailLen   = 6 + Math.floor(Math.random() * 14);  // 6–20 (was 8–32)
-
+  function newColumn(x) {
+    const rows     = Math.ceil(canvas.height / FONT_SIZE);
+    const trailLen = 10 + Math.floor(Math.random() * 20);    // 10–29 chars
     return {
-      x:          baseX + (Math.random() - 0.5) * 4,      // slight x jitter
-      y:          Math.random() * -(canvas.height / fontSize) * 1.8,
-      speed:      speedBase,
+      x,
+      /* head row — negative means above viewport, advances downward */
+      y:          Math.floor(Math.random() * -(rows + trailLen)),
+      speed:      0.5 + Math.random() * 1.5,   // rows/frame at 60 fps, m=1
       trailLen,
-      bright:     Math.random() > 0.88,
-      mutRate:    0.06 + Math.random() * 0.22,
-      chars:      {},
-      fontSize,
-      opacitySc,
-      depth,
+      mutRate:    0.04 + Math.random() * 0.18,  // character mutation probability
+      chars:      {},                            // cached glyphs keyed by row index
       boostTimer: 0,
       boost:      1.0,
     };
   }
 
-  /* ----------------------------------------------------------
-     Neo message overlay
-  ---------------------------------------------------------- */
+  /* ============================================================
+     NEO MESSAGE OVERLAY
+     ============================================================ */
   function createNeoEl() {
     neoEl = document.createElement('div');
     neoEl.style.cssText = [
@@ -158,27 +280,22 @@
       'pointer-events:none', 'z-index:450',
       'font-family:monospace', 'font-size:clamp(1.1rem,2.5vw,1.8rem)',
       'letter-spacing:0.18em', 'text-align:center',
-      'color:#00ff41',
-      'text-shadow:0 0 16px #00ff41,0 0 32px #00ff41',
-      'opacity:0', 'transition:none',
-      'white-space:nowrap',
+      'color:#00ff00', 'opacity:0', 'white-space:nowrap',
     ].join(';');
     document.body.appendChild(neoEl);
   }
 
   function updateNeo(dtSec) {
-    if (konamiActive) return; // konami takes over the element
-
+    if (konamiActive) return;
     if (neoPhase === 'idle') {
       neoTimer -= dtSec;
       if (neoTimer <= 0) {
         neoEl.textContent = NEO_MSGS[Math.floor(Math.random() * NEO_MSGS.length)];
-        neoEl.style.color      = '#00ff41';
-        neoEl.style.textShadow = '0 0 16px #00ff41,0 0 32px #00ff41';
+        neoEl.style.color = '#00ff00';
         neoPhase = 'fadein'; neoOpacity = 0;
       }
     } else if (neoPhase === 'fadein') {
-      neoOpacity = Math.min(1, neoOpacity + dtSec * 1.0);
+      neoOpacity = Math.min(1, neoOpacity + dtSec);
       neoEl.style.opacity = neoOpacity;
       if (neoOpacity >= 1) { neoPhase = 'show'; neoTimer = 3.5; }
     } else if (neoPhase === 'show') {
@@ -191,109 +308,90 @@
     }
   }
 
-  /* ----------------------------------------------------------
-     CRT flicker
-  ---------------------------------------------------------- */
-  function updateFlicker(dtSec) {
-    if (REDUCED_MOTION) return;
-    if (!flickerActive) {
-      flickerTimer -= dtSec;
-      if (flickerTimer <= 0) {
-        flickerActive = true;
-        flickerFrames = 1 + Math.floor(Math.random() * 3);
-        canvas.style.opacity = (0.55 + Math.random() * 0.30).toString();
-        flickerTimer = 10 + Math.random() * 25;
-      }
-    } else {
-      if (--flickerFrames <= 0) { flickerActive = false; canvas.style.opacity = '1'; }
-    }
-  }
-
-  /* ----------------------------------------------------------
-     Konami effect
-  ---------------------------------------------------------- */
   function triggerKonami() {
-    konamiActive = true;
-    konamiTimer  = 3.0;
-    neoEl.style.opacity    = '1';
-    neoEl.style.color      = '#ffffff';
-    neoEl.style.textShadow = '0 0 20px #fff,0 0 60px #fff,0 0 100px #fff';
-    neoEl.textContent      = '// SYSTEM OVERRIDE //';
-    neoPhase = 'idle'; neoTimer = 20; // reset neo after konami
+    konamiActive = true; konamiTimer = 3.0;
+    neoEl.style.opacity = '1';
+    neoEl.style.color   = '#ffffff';
+    neoEl.textContent   = '// SYSTEM OVERRIDE //';
+    neoPhase = 'idle'; neoTimer = 20;
   }
 
   function updateKonami(dtSec) {
     if (!konamiActive) return;
     konamiTimer -= dtSec;
-    if (konamiTimer <= 0) {
-      konamiActive = false;
-      neoEl.style.opacity = '0';
-    }
+    if (konamiTimer <= 0) { konamiActive = false; neoEl.style.opacity = '0'; }
   }
 
-  /* ----------------------------------------------------------
-     Draw frame
-  ---------------------------------------------------------- */
+  /* ============================================================
+     DRAW FRAME
+     ============================================================ */
   function drawFrame(dt) {
     const dtSec = dt / 1000;
-    const m     = mult();
+    const m     = speedMult();
     const theme = THEMES[rainColor] || THEMES.green;
 
-    // Update effects
     updateNeo(dtSec);
-    updateFlicker(dtSec);
     updateKonami(dtSec);
 
-    // Fade to black — increases WITH speed so trail length stays consistent
-    const fade = 0.04 + m * 0.025;   // slow≈0.05  normal≈0.065  fast≈0.10
+    /* ── Step 1: overlay translucent BLACK to fade previous frame ──
+       Pure rgba(0,0,0,f) — no green tint, no colour cast.
+       At fast speed the fade is slightly stronger so trail length
+       stays proportionally consistent with column velocity.          */
+    const fade = 0.04 + m * 0.025;   // slow≈0.05  normal≈0.065  fast≈0.1025
     ctx.fillStyle = `rgba(0,0,0,${fade})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // No sort needed — depth variation is per-column opacity, not draw-order dependent
+    /* ── Step 2: draw each column's trail + head ── */
+    ctx.font      = `${FONT_SIZE}px monospace`;
+    ctx.textAlign = 'left';
+    ctx.shadowBlur = 0;
 
     columns.forEach(col => {
-      const { fontSize: fs, opacitySc, bright } = col;
       const headRow = Math.floor(col.y);
 
-      ctx.font      = `${fs - 2}px monospace`;
-      ctx.textAlign = 'left';
-
-      // Mouse repel: compute proximity factor (0 = fully repelled, 1 = unaffected)
-      const dxM = Math.abs(col.x - mouseX);
+      /* Mouse-repel: fade column near cursor (both axes) */
+      const dxM    = Math.abs(col.x - mouseX);
       const repelX = dxM < 90 ? dxM / 90 : 1.0;
 
       for (let j = col.trailLen; j >= 0; j--) {
         const row = headRow - j;
-        if (row < 0) continue;
-        const py = row * fs;
-        if (py > canvas.height + fs) continue;
+        if (row < 0) continue;              // above viewport
 
-        // Mouse repel on Y axis
+        const py = row * FONT_SIZE;
+        if (py > canvas.height + FONT_SIZE) continue;   // below viewport
+
         const dyM    = Math.abs(py - mouseY);
         const repelY = dyM < 90 ? dyM / 90 : 1.0;
         const repel  = Math.min(repelX, repelY);
 
-        // Mutate character
-        if (!col.chars[row] || Math.random() < col.mutRate) col.chars[row] = rndChar();
+        /* Randomise glyph occasionally to simulate changing data */
+        if (!col.chars[row] || Math.random() < col.mutRate) {
+          col.chars[row] = rndChar();
+        }
 
-        const relDist = j / col.trailLen; // 0 = head, 1 = tail
+        const relDist = j / col.trailLen;   // 0 = head, 1 = tail
 
+        /* ── Colour per trail position ── */
+        ctx.shadowBlur = 0;
         if (j === 0) {
-          ctx.fillStyle = konamiActive ? '#ffffff' : (bright ? theme.head : theme.near(0.9 * opacitySc));
-          if (useGlow) { ctx.shadowColor = konamiActive ? '#fff' : theme.glow; ctx.shadowBlur = bright ? 18 : 10; }
-        } else if (j === 1) {
-          ctx.fillStyle = konamiActive ? '#eeeeee' : theme.near(0.9 * opacitySc);
-          if (useGlow) { ctx.shadowColor = konamiActive ? '#fff' : theme.glow; ctx.shadowBlur = 7; }
-        } else if (j < 5) {
-          const a = (1 - (j / 5) * 0.45) * opacitySc;
-          ctx.fillStyle = konamiActive ? `rgba(230,230,230,${a})` : theme.near(a);
-          if (useGlow && j < 3) { ctx.shadowColor = konamiActive ? '#fff' : theme.glow; ctx.shadowBlur = 3; }
-          else ctx.shadowBlur = 0;
+          /* Leading character — maximum brightness */
+          ctx.fillStyle = konamiActive ? '#ffffff' : theme.head;
+          if (useGlow) { ctx.shadowColor = theme.head; ctx.shadowBlur = 7; }
+
+        } else if (j <= 2) {
+          /* 1–2 chars behind head — still very bright */
+          const a = 0.95 - j * 0.15;
+          ctx.fillStyle = konamiActive ? `rgba(255,255,255,${a})` : theme.near(a);
+
+        } else if (relDist < 0.5) {
+          /* Mid-trail — fading from bright to medium */
+          const a = (1 - relDist * 0.70) * 0.80;
+          ctx.fillStyle = konamiActive ? `rgba(190,190,190,${a})` : theme.mid(a, relDist);
+
         } else {
-          const a = Math.pow(1 - relDist, 2.2) * 0.80 * opacitySc;
-          const g = ~~(40 + 215 * (1 - relDist));
-          ctx.fillStyle = konamiActive ? `rgba(${g},${g},${g},${a})` : theme.trail(a, relDist);
-          ctx.shadowBlur = 0;
+          /* Tail — dim, converging toward black */
+          const a = (1 - relDist) * 0.55;
+          ctx.fillStyle = konamiActive ? `rgba(90,90,90,${a})` : theme.dim(a, relDist);
         }
 
         ctx.globalAlpha = repel;
@@ -302,7 +400,7 @@
         ctx.shadowBlur  = 0;
       }
 
-      // Boost decay
+      /* Boost decay (click-to-accelerate) */
       if (col.boostTimer > 0) {
         col.boostTimer = Math.max(0, col.boostTimer - dtSec);
         col.boost = 1 + col.boostTimer * 5;
@@ -310,32 +408,26 @@
         col.boost = 1.0;
       }
 
-      // Advance
+      /* Advance head row — frame-rate independent */
       col.y += col.speed * col.boost * m * (dt / 16);
 
-      // Memory cleanup
+      /* Clean up stale char cache entries well above head */
       const oldRow = headRow - col.trailLen - 10;
       if (oldRow > 0) delete col.chars[oldRow];
 
-      // Reset off-screen
-      if (col.y * fs > canvas.height + col.trailLen * fs * 2 && Math.random() > 0.97) {
-        col.y        = -col.trailLen - Math.random() * 30;
+      /* Reset column when its entire trail has scrolled below viewport */
+      if (col.y > canvas.height / FONT_SIZE + col.trailLen + 5 && Math.random() > 0.97) {
+        col.y        = -col.trailLen - Math.random() * 20;
         col.chars    = {};
-        col.trailLen = 6 + Math.floor(Math.random() * 14);
-        col.bright   = Math.random() > 0.88;
+        col.trailLen = 10 + Math.floor(Math.random() * 20);
       }
     });
-
-    // CRT scanline overlay
-    ctx.fillStyle = theme.scan;
-    for (let y = 0; y < canvas.height; y += 4) {
-      ctx.fillRect(0, y, canvas.width, 1);
-    }
+    /* ── NO scanline pass, NO CRT overlay, NO colour tint ── */
   }
 
-  /* ----------------------------------------------------------
-     Animation loop
-  ---------------------------------------------------------- */
+  /* ============================================================
+     ANIMATION LOOP
+     ============================================================ */
   function animate(ts) {
     const dt = Math.min(ts - lastTime, 100);
     lastTime = ts;
@@ -353,9 +445,9 @@
     if (animId) { cancelAnimationFrame(animId); animId = null; }
   }
 
-  /* ----------------------------------------------------------
-     Init
-  ---------------------------------------------------------- */
+  /* ============================================================
+     INIT
+     ============================================================ */
   function init() {
     resize();
     createNeoEl();
@@ -363,36 +455,52 @@
     startLoop();
   }
 
-  /* ----------------------------------------------------------
-     Events
-  ---------------------------------------------------------- */
+  /* ============================================================
+     EVENTS
+     ============================================================ */
+  /* Pause when tab is hidden, resume when visible */
   document.addEventListener('visibilitychange', () => {
     document.hidden ? stopLoop() : startLoop();
   });
 
+  /* Settings events (dispatched by app.js) */
   document.addEventListener('matrixBgSpeedChange', startLoop);
-
-  document.addEventListener('matrixGlowChange',    e => { useGlow    = e.detail === 'on'; if (!useGlow) ctx.shadowBlur = 0; });
+  document.addEventListener('matrixGlowChange',    e => {
+    useGlow = e.detail === 'on';
+    if (!useGlow) ctx.shadowBlur = 0;
+  });
   document.addEventListener('matrixColorChange',   e => { rainColor  = e.detail; });
-  document.addEventListener('matrixCharsetChange', e => { charSetKey = e.detail; columns.forEach(c => { c.chars = {}; }); });
-  document.addEventListener('matrixDensityChange', e => { density    = e.detail; initColumns(); });
-
-  // Mouse tracking for repel
-  document.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
-  document.addEventListener('mouseleave', () => { mouseX = -9999; mouseY = -9999; });
-
-  // Click: accelerate nearest column
-  canvas.addEventListener('click', e => {
-    let best = null, bestDist = Infinity;
-    columns.forEach(col => { const d = Math.abs(col.x - e.clientX); if (d < bestDist) { bestDist = d; best = col; } });
-    if (best) { best.boostTimer = 1.8; }
+  document.addEventListener('matrixCharsetChange', e => {
+    charSetKey = e.detail;
+    columns.forEach(c => { c.chars = {}; });   // flush cached glyphs
+  });
+  document.addEventListener('matrixDensityChange', e => {
+    density = e.detail;
+    initColumns();
   });
 
-  // Konami code listener
+  /* Mouse repel */
+  document.addEventListener('mousemove',  e => { mouseX = e.clientX; mouseY = e.clientY; });
+  document.addEventListener('mouseleave', ()  => { mouseX = -9999; mouseY = -9999; });
+
+  /* Click: boost nearest column */
+  canvas.addEventListener('click', e => {
+    let best = null, bestDist = Infinity;
+    columns.forEach(col => {
+      const d = Math.abs(col.x - e.clientX);
+      if (d < bestDist) { bestDist = d; best = col; }
+    });
+    if (best) best.boostTimer = 1.8;
+  });
+
+  /* Konami code */
   document.addEventListener('keydown', e => {
     konamiBuffer.push(e.key);
     if (konamiBuffer.length > KONAMI.length) konamiBuffer.shift();
-    if (konamiBuffer.join(',') === KONAMI.join(',')) { konamiBuffer = []; triggerKonami(); }
+    if (konamiBuffer.join(',') === KONAMI.join(',')) {
+      konamiBuffer = [];
+      triggerKonami();
+    }
   });
 
   window.addEventListener('resize', resize);

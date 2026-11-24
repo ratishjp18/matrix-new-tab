@@ -439,6 +439,9 @@ body:hover .settings-toggle,
 
 .btn-group { display: flex; gap: 6px; }
 
+/* Wrapping variant — used for Rain Colour (15) and Language (11) */
+.btn-group--wrap { flex-wrap: wrap; gap: 5px; }
+
 .size-btn, .bgspeed-btn, .glow-btn, .raincolor-btn, .charset-btn, .density-btn, .labels-btn {
   flex: 1; padding: 7px 8px; border-radius: 9px;
   background: rgba(0, 255, 65, 0.05);
@@ -458,12 +461,23 @@ body:hover .settings-toggle,
   color: #00ff41;
 }
 
-/* Rain colour active states */
+/* Rain colour active states — original 5 */
 .raincolor-btn.active[data-color="green"]  { background:rgba(0,255,65,0.20);  border-color:rgba(0,255,65,0.60);  color:#00ff41; }
 .raincolor-btn.active[data-color="blue"]   { background:rgba(0,160,255,0.20); border-color:rgba(0,160,255,0.60); color:#00aaff; }
 .raincolor-btn.active[data-color="red"]    { background:rgba(255,32,32,0.20); border-color:rgba(255,32,32,0.60); color:#ff2020; }
 .raincolor-btn.active[data-color="white"]  { background:rgba(210,210,210,0.18);border-color:rgba(210,210,210,0.55);color:#cccccc; }
 .raincolor-btn.active[data-color="purple"] { background:rgba(160,0,255,0.20); border-color:rgba(160,0,255,0.60); color:#aa44ff; }
+/* Rain colour active states — 10 new colours */
+.raincolor-btn.active[data-color="cyan"]    { background:rgba(0,255,255,0.18);  border-color:rgba(0,255,255,0.60);  color:#00ffff; }
+.raincolor-btn.active[data-color="orange"]  { background:rgba(255,110,0,0.20);  border-color:rgba(255,110,0,0.60);  color:#ff6e00; }
+.raincolor-btn.active[data-color="gold"]    { background:rgba(255,200,0,0.20);  border-color:rgba(255,200,0,0.60);  color:#ffc800; }
+.raincolor-btn.active[data-color="pink"]    { background:rgba(255,0,128,0.20);  border-color:rgba(255,0,128,0.60);  color:#ff0088; }
+.raincolor-btn.active[data-color="teal"]    { background:rgba(0,200,170,0.20);  border-color:rgba(0,200,170,0.60);  color:#00c8aa; }
+.raincolor-btn.active[data-color="lime"]    { background:rgba(128,255,0,0.20);  border-color:rgba(128,255,0,0.60);  color:#80ff00; }
+.raincolor-btn.active[data-color="sky"]     { background:rgba(0,180,255,0.20);  border-color:rgba(0,180,255,0.60);  color:#00b4ff; }
+.raincolor-btn.active[data-color="crimson"] { background:rgba(220,20,60,0.20);  border-color:rgba(220,20,60,0.60);  color:#dc143c; }
+.raincolor-btn.active[data-color="amber"]   { background:rgba(255,170,0,0.20);  border-color:rgba(255,170,0,0.60);  color:#ffaa00; }
+.raincolor-btn.active[data-color="violet"]  { background:rgba(138,43,226,0.20); border-color:rgba(138,43,226,0.60); color:#8a2be2; }
 
 /* Always-on tile labels */
 body.labels-always .tile__tooltip {

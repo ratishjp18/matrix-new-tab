@@ -7,7 +7,7 @@
 (function () {
   'use strict';
 
-  const STORAGE_VERSION = 2;   // bumped — new settings added
+  const STORAGE_VERSION = 4;   // bumped — language auto-detection + 15 colour presets
   const COLS            = 6;
   const ROWS            = 2;
   const PAGE_SIZE       = COLS * ROWS;
@@ -58,10 +58,10 @@
   ---------------------------------------------------------- */
   let tileSize        = 'large';
   let bgSpeed         = 'fast';
-  let glowEnabled     = 'on';
+  let glowEnabled     = 'off';
   let rainColor       = 'green';
-  let charSetKey      = 'mixed';
-  let density         = 'normal';
+  let charSetKey      = 'auto';
+  let density         = 'dense';
   let tileLabels      = 'hover';
   let currentPage     = 0;
   let totalPages      = 0;
@@ -76,16 +76,16 @@
       if (typeof chrome !== 'undefined' && chrome.storage) {
         chrome.storage.sync.get(['tileSize','bgSpeed','glowEnabled','rainColor','charSetKey','density','tileLabels','storageVersion'], data => {
           if (data.storageVersion !== STORAGE_VERSION) {
-            tileSize = 'large'; bgSpeed = 'fast'; glowEnabled = 'on';
-            rainColor = 'green'; charSetKey = 'mixed'; density = 'normal'; tileLabels = 'hover';
+            tileSize = 'large'; bgSpeed = 'fast'; glowEnabled = 'off';
+            rainColor = 'green'; charSetKey = 'auto'; density = 'dense'; tileLabels = 'hover';
             chrome.storage.sync.clear(() => chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, rainColor, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION }));
           } else {
             tileSize   = data.tileSize   || 'large';
             bgSpeed    = data.bgSpeed    || 'fast';
-            glowEnabled= data.glowEnabled|| 'on';
+            glowEnabled= data.glowEnabled|| 'off';
             rainColor  = data.rainColor  || 'green';
-            charSetKey = data.charSetKey || 'mixed';
-            density    = data.density    || 'normal';
+            charSetKey = data.charSetKey || 'auto';
+            density    = data.density    || 'dense';
             tileLabels = data.tileLabels || 'hover';
           }
           resolve();
@@ -372,8 +372,8 @@
   // Reset
   document.getElementById('reset-btn').addEventListener('click', () => {
     if (!confirm('Reset all settings to defaults?')) return;
-    tileSize = 'large'; bgSpeed = 'fast'; glowEnabled = 'on';
-    rainColor = 'green'; charSetKey = 'mixed'; density = 'normal'; tileLabels = 'hover';
+    tileSize = 'large'; bgSpeed = 'fast'; glowEnabled = 'off';
+    rainColor = 'green'; charSetKey = 'auto'; density = 'dense'; tileLabels = 'hover';
     saveSettings(); applySettingsToUI(); buildPages();
   });
 
