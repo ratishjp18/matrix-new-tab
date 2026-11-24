@@ -314,15 +314,17 @@
     saveSettings(); buildPages();
   }));
 
-  // Rain speed
-  document.querySelectorAll('.bgspeed-btn').forEach(btn => btn.addEventListener('click', () => {
-    bgSpeed = btn.dataset.bgspeed;
-    document.querySelectorAll('.bgspeed-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.documentElement.dataset.bgSpeed = bgSpeed;
-    document.dispatchEvent(new CustomEvent('matrixBgSpeedChange'));
-    saveSettings();
-  }));
+  // Rain speed — slider (0=slow, 1=normal, 2=fast)
+  const SPEED_STEPS = ['slow', 'normal', 'fast'];
+  const speedSlider = document.getElementById('speed-slider');
+  if (speedSlider) {
+    speedSlider.addEventListener('input', () => {
+      bgSpeed = SPEED_STEPS[+speedSlider.value] || 'fast';
+      document.documentElement.dataset.bgSpeed = bgSpeed;
+      document.dispatchEvent(new CustomEvent('matrixBgSpeedChange'));
+      saveSettings();
+    });
+  }
 
   // Rain colour
   document.querySelectorAll('.raincolor-btn').forEach(btn => btn.addEventListener('click', () => {
@@ -379,7 +381,12 @@
 
   function applySettingsToUI() {
     document.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('active', b.dataset.size === tileSize));
-    document.querySelectorAll('.bgspeed-btn').forEach(b => b.classList.toggle('active', b.dataset.bgspeed === bgSpeed));
+    // Sync speed slider position
+    const speedSlider = document.getElementById('speed-slider');
+    if (speedSlider) {
+      const SPEED_STEPS = ['slow', 'normal', 'fast'];
+      speedSlider.value = Math.max(0, SPEED_STEPS.indexOf(bgSpeed));
+    }
     document.querySelectorAll('.glow-btn').forEach(b => b.classList.toggle('active', b.dataset.glow === glowEnabled));
     document.querySelectorAll('.raincolor-btn').forEach(b => b.classList.toggle('active', b.dataset.color === rainColor));
     document.querySelectorAll('.charset-btn').forEach(b => b.classList.toggle('active', b.dataset.charset === charSetKey));
