@@ -57,7 +57,7 @@
      State
   ---------------------------------------------------------- */
   let tileSize        = 'large';
-  let bgSpeed         = 'fast';
+  let bgSpeed         = '80';
   let glowEnabled     = 'off';
   let rainColor       = 'green';
   let charSetKey      = 'classic';
@@ -76,12 +76,15 @@
       if (typeof chrome !== 'undefined' && chrome.storage) {
         chrome.storage.sync.get(['tileSize','bgSpeed','glowEnabled','rainColor','charSetKey','density','tileLabels','storageVersion'], data => {
           if (data.storageVersion !== STORAGE_VERSION) {
-            tileSize = 'large'; bgSpeed = 'fast'; glowEnabled = 'off';
+            tileSize = 'large'; bgSpeed = '80'; glowEnabled = 'off';
             rainColor = 'green'; charSetKey = 'classic'; density = 'dense'; tileLabels = 'hover';
             chrome.storage.sync.clear(() => chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, rainColor, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION }));
           } else {
             tileSize   = data.tileSize   || 'large';
-            bgSpeed    = data.bgSpeed    || 'fast';
+            // Convert legacy named speeds ('fast','normal','slow') to numeric
+            const rawSpeed = data.bgSpeed || '80';
+            const legacyMap = { slow: '8', normal: '40', fast: '80' };
+            bgSpeed    = legacyMap[rawSpeed] || rawSpeed;
             glowEnabled= data.glowEnabled|| 'off';
             rainColor  = data.rainColor  || 'green';
             charSetKey = data.charSetKey || 'classic';
@@ -314,12 +317,19 @@
     saveSettings(); buildPages();
   }));
 
-  // Rain speed — slider (0=slow, 1=normal, 2=fast)
-  const SPEED_STEPS = ['slow', 'normal', 'fast'];
+  // Rain speed — continuous slider (1–100 → 0.025–2.5 multiplier)
   const speedSlider = document.getElementById('speed-slider');
+
+  function syncSpeedSlider() {
+    if (!speedSlider) return;
+    const pct = ((+speedSlider.value - 1) / 99) * 100;
+    speedSlider.style.setProperty('--fill-pct', pct.toFixed(1) + '%');
+  }
+
   if (speedSlider) {
     speedSlider.addEventListener('input', () => {
-      bgSpeed = SPEED_STEPS[+speedSlider.value] || 'fast';
+      bgSpeed = speedSlider.value;          // store as "1"–"100"
+      syncSpeedSlider();
       document.documentElement.dataset.bgSpeed = bgSpeed;
       document.dispatchEvent(new CustomEvent('matrixBgSpeedChange'));
       saveSettings();
@@ -374,7 +384,7 @@
   // Reset
   document.getElementById('reset-btn').addEventListener('click', () => {
     if (!confirm('Reset all settings to defaults?')) return;
-    tileSize = 'large'; bgSpeed = 'fast'; glowEnabled = 'off';
+    tileSize = 'large'; bgSpeed = '80'; glowEnabled = 'off';
     rainColor = 'green'; charSetKey = 'classic'; density = 'dense'; tileLabels = 'hover';
     saveSettings(); applySettingsToUI(); buildPages();
   });
@@ -384,8 +394,8 @@
     // Sync speed slider position
     const speedSlider = document.getElementById('speed-slider');
     if (speedSlider) {
-      const SPEED_STEPS = ['slow', 'normal', 'fast'];
-      speedSlider.value = Math.max(0, SPEED_STEPS.indexOf(bgSpeed));
+      speedSlider.value = bgSpeed;
+      syncSpeedSlider();
     }
     document.querySelectorAll('.glow-btn').forEach(b => b.classList.toggle('active', b.dataset.glow === glowEnabled));
     document.querySelectorAll('.raincolor-btn').forEach(b => b.classList.toggle('active', b.dataset.color === rainColor));

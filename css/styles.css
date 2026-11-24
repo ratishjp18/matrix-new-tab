@@ -469,12 +469,12 @@ body:hover .settings-toggle,
 }
 
 /* ============================================================
-   Rain speed slider
+   Rain speed slider  — continuous range (1–100)
    ============================================================ */
 .speed-slider-wrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .speed-slider {
@@ -483,9 +483,16 @@ body:hover .settings-toggle,
   width: 100%;
   height: 3px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.15);
   outline: none;
   cursor: pointer;
+  /* --fill-pct is set by JS; left = active, right = dim */
+  background: linear-gradient(
+    to right,
+    rgba(255,255,255,0.75) 0%,
+    rgba(255,255,255,0.75) var(--fill-pct, 80%),
+    rgba(255,255,255,0.14) var(--fill-pct, 80%),
+    rgba(255,255,255,0.14) 100%
+  );
 }
 
 .speed-slider::-webkit-slider-thumb {
@@ -495,12 +502,15 @@ body:hover .settings-toggle,
   border-radius: 50%;
   background: #ffffff;
   cursor: pointer;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.15);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 0 0 0 rgba(255,255,255,0);
 }
 .speed-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.25);
-  box-shadow: 0 0 8px rgba(255,255,255,0.4);
+  transform: scale(1.2);
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.25);
+}
+.speed-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.35);
 }
 
 .speed-slider::-moz-range-thumb {
@@ -508,8 +518,13 @@ body:hover .settings-toggle,
   border-radius: 50%; border: none;
   background: #ffffff; cursor: pointer;
 }
-.speed-slider:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+.speed-slider::-moz-range-track {
+  height: 3px; border-radius: 2px;
+  background: rgba(255,255,255,0.14);
+}
+.speed-slider::-moz-range-progress {
+  height: 3px; border-radius: 2px;
+  background: rgba(255,255,255,0.75);
 }
 
 .speed-labels {

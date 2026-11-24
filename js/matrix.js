@@ -131,7 +131,12 @@
      ============================================================ */
   function speedMult() {
     if (REDUCED_MOTION) return 0;
-    return SPEED_MULT[document.documentElement.dataset.bgSpeed || 'fast'] ?? 1.0;
+    const raw = document.documentElement.dataset.bgSpeed || '80';
+    const n   = parseFloat(raw);
+    // Numeric value from slider (1–100) → multiplier 0.025–2.5
+    if (!isNaN(n)) return n * 0.025;
+    // Legacy named values (backward compat)
+    return SPEED_MULT[raw] ?? 1.0;
   }
 
   function rndChar() {
