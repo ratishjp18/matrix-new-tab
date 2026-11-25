@@ -64,7 +64,7 @@ body {
 
 .matrix-clock__time {
   font-family: monospace;
-  font-size: clamp(2rem, 4.5vw, 4rem);
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
   font-weight: 400;
   color: rgba(0, 255, 65, 0.70);
   text-shadow: 0 0 18px rgba(0, 255, 65, 0.50), 0 0 40px rgba(0, 255, 65, 0.25);
@@ -83,11 +83,12 @@ body {
 
 .matrix-clock__date {
   font-family: monospace;
-  font-size: clamp(0.65rem, 1.2vw, 0.95rem);
-  color: rgba(0, 255, 65, 0.42);
-  letter-spacing: 0.18em;
-  margin-top: 6px;
+  font-size: clamp(0.6rem, 1vw, 0.8rem);
+  color: rgba(0, 255, 65, 0.55);
+  letter-spacing: 0.30em;
+  margin-top: 10px;
   text-transform: uppercase;
+  font-weight: 400;
 }
 
 /* ============================================================
@@ -207,6 +208,11 @@ body {
 }
 
 .tile__name { display: none; }
+
+body.labels-always .tile__tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
 
 .tile__tooltip {
   position: absolute;
@@ -405,7 +411,7 @@ body:hover .settings-toggle,
    Settings panel
    ============================================================ */
 .settings-panel {
-  position: fixed; top: 0; right: 0; height: 100%; width: 320px;
+  position: fixed; top: 0; right: 0; height: 100%; width: 280px;
   background: rgba(10, 12, 10, 0.98);
   backdrop-filter: blur(28px) saturate(1.4); -webkit-backdrop-filter: blur(28px) saturate(1.4);
   border-left: 1px solid rgba(0, 180, 60, 0.18);
@@ -419,28 +425,28 @@ body:hover .settings-toggle,
 
 .settings-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 22px 20px 18px;
+  padding: 14px 16px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   flex-shrink: 0;
 }
 .settings-header h2 {
-  font-size: 0.82rem; font-weight: 800; letter-spacing: 0.16em;
+  font-size: 0.75rem; font-weight: 800; letter-spacing: 0.16em;
   text-transform: uppercase; color: rgba(255, 255, 255, 0.92);
   font-family: monospace;
 }
 
 .settings-close {
-  width: 30px; height: 30px; border-radius: 50%;
+  width: 24px; height: 24px; border-radius: 50%;
   background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(255, 255, 255, 0.60); font-size: 15px; cursor: pointer;
+  color: rgba(255, 255, 255, 0.60); font-size: 12px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: background 0.2s ease, color 0.2s ease;
 }
 .settings-close:hover { background: rgba(255, 255, 255, 0.14); color: #ffffff; }
 
 .settings-body {
-  flex: 1; overflow-y: auto; padding: 20px 20px 32px;
-  display: flex; flex-direction: column; gap: 22px;
+  flex: 1; overflow-y: auto; padding: 16px 14px 24px;
+  display: flex; flex-direction: column; gap: 20px;
   scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.10) transparent;
 }
 .settings-body::-webkit-scrollbar       { width: 4px; }
@@ -448,36 +454,38 @@ body:hover .settings-toggle,
 .settings-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 
 .settings-section h3 {
-  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.13em;
+  font-size: 0.55rem; font-weight: 700; letter-spacing: 0.13em;
   text-transform: uppercase; color: rgba(255, 255, 255, 0.38);
-  margin-bottom: 12px; font-family: monospace;
+  margin-bottom: 8px; font-family: monospace;
 }
+
+.settings-section { width: 100%; }
 
 /* Toggle-row sections — label + switch on the same line, no stack */
 .settings-section--row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 2px 0;
+  padding: 1px 0;
 }
 .settings-section--row h3 {
   margin-bottom: 0;
   color: rgba(255, 255, 255, 0.72);
-  font-size: 0.82rem; font-weight: 500;
+  font-size: 0.72rem; font-weight: 500;
   letter-spacing: 0.02em; text-transform: none;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 }
 
-.btn-group { display: flex; gap: 8px; }
+.btn-group { display: flex; gap: 6px; }
 
 /* Wrapping variant */
-.btn-group--wrap { flex-wrap: wrap; gap: 6px; }
+.btn-group--wrap { flex-wrap: wrap; gap: 5px; }
 
 /* ── Pill buttons ────────────────────────────────────────── */
 .size-btn, .charset-btn {
-  flex: 1; padding: 10px 8px; border-radius: 12px;
+  flex: 1; padding: 6px 4px; border-radius: 8px;
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.11);
   color: rgba(255, 255, 255, 0.55);
-  font-size: 0.80rem; font-family: inherit; cursor: pointer;
+  font-size: 0.70rem; font-family: inherit; cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
 .size-btn:hover, .charset-btn:hover {
@@ -495,15 +503,15 @@ body:hover .settings-toggle,
   position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;
 }
 .toggle-switch__track {
-  display: block; width: 46px; height: 26px; border-radius: 13px;
+  display: block; width: 34px; height: 18px; border-radius: 9px;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.10);
   position: relative;
   transition: background 0.25s ease, border-color 0.25s ease;
 }
 .toggle-switch__thumb {
-  position: absolute; top: 3px; left: 3px;
-  width: 18px; height: 18px; border-radius: 50%;
+  position: absolute; top: 2px; left: 2px;
+  width: 12px; height: 12px; border-radius: 50%;
   background: #ffffff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.35);
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -513,7 +521,7 @@ body:hover .settings-toggle,
   border-color: rgba(0, 210, 75, 0.50);
 }
 .toggle-switch__input:checked + .toggle-switch__track .toggle-switch__thumb {
-  transform: translateX(20px);
+  transform: translateX(16px);
 }
 .toggle-switch:hover .toggle-switch__track { border-color: rgba(255,255,255,0.22); }
 .toggle-switch__input:focus-visible + .toggle-switch__track {
@@ -601,13 +609,13 @@ body:hover .settings-toggle,
 /* Toggle rows inside a grouped section (h3 header above, rows below) */
 .settings-toggle-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 9px 0;
+  padding: 11px 0;
 }
 .settings-toggle-row + .settings-toggle-row {
   border-top: 1px solid rgba(255,255,255,0.05);
 }
 .settings-toggle-row span {
-  font-size: 0.82rem; font-weight: 500;
+  font-size: 0.72rem; font-weight: 500;
   color: rgba(255,255,255,0.72);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 }
@@ -619,19 +627,22 @@ body.no-idle-float .tile__icon-wrap {
 body.no-idle-float .tile:hover .tile__icon-wrap {
   transform: scale(1.08) rotate(4deg);
 }
-  opacity: 0.80;
-  transform: translateX(-50%) translateY(0);
-}
 
 .btn-danger {
-  width: 100%; padding: 9px 16px; border-radius: 10px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.30);
-  color: rgba(255, 180, 180, 0.80);
-  font-size: 0.78rem; font-weight: 500; font-family: inherit; cursor: pointer;
-  transition: background 0.2s ease;
+  display: block;
+  width: 100%; padding: 9px 16px; border-radius: 12px;
+  background: rgba(80, 10, 15, 0.85);
+  border: 1.5px solid rgba(200, 50, 60, 0.60);
+  color: rgba(240, 100, 110, 0.95);
+  font-size: 0.75rem; font-weight: 600; font-family: inherit; cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  letter-spacing: 0.04em;
+  box-sizing: border-box;
 }
-.btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+.btn-danger:hover {
+  background: rgba(110, 15, 20, 0.95);
+  border-color: rgba(220, 70, 80, 0.80);
+}
 
 /* ============================================================
    Scroll hint
