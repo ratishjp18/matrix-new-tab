@@ -59,9 +59,8 @@
   let tileSize        = 'large';
   let bgSpeed         = '80';
   let glowEnabled     = 'off';
-  let rainColor       = 'green';
   let charSetKey      = 'classic';
-  let density         = 'dense';
+  let density         = '90';
   let tileLabels      = 'hover';
   let currentPage     = 0;
   let totalPages      = 0;
@@ -74,11 +73,11 @@
   function loadSettings() {
     return new Promise(resolve => {
       if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.sync.get(['tileSize','bgSpeed','glowEnabled','rainColor','charSetKey','density','tileLabels','storageVersion'], data => {
+        chrome.storage.sync.get(['tileSize','bgSpeed','glowEnabled','charSetKey','density','tileLabels','storageVersion'], data => {
           if (data.storageVersion !== STORAGE_VERSION) {
             tileSize = 'large'; bgSpeed = '80'; glowEnabled = 'off';
-            rainColor = 'green'; charSetKey = 'classic'; density = 'dense'; tileLabels = 'hover';
-            chrome.storage.sync.clear(() => chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, rainColor, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION }));
+            charSetKey = 'classic'; density = '90'; tileLabels = 'hover';
+            chrome.storage.sync.clear(() => chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION }));
           } else {
             tileSize   = data.tileSize   || 'large';
             // Convert legacy named speeds ('fast','normal','slow') to numeric
@@ -86,9 +85,11 @@
             const legacyMap = { slow: '8', normal: '40', fast: '80' };
             bgSpeed    = legacyMap[rawSpeed] || rawSpeed;
             glowEnabled= data.glowEnabled|| 'off';
-            rainColor  = data.rainColor  || 'green';
             charSetKey = data.charSetKey || 'classic';
-            density    = data.density    || 'dense';
+            // Convert legacy named density ('sparse','normal','dense') to numeric
+            const rawDensity = data.density || '90';
+            const densityMap = { sparse: '35', normal: '65', dense: '90' };
+            density    = densityMap[rawDensity] || rawDensity;
             tileLabels = data.tileLabels || 'hover';
           }
           resolve();
@@ -99,7 +100,7 @@
 
   function saveSettings() {
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, rainColor, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION });
+      chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION });
     }
   }
 
@@ -336,15 +337,6 @@
     });
   }
 
-  // Rain colour
-  document.querySelectorAll('.raincolor-btn').forEach(btn => btn.addEventListener('click', () => {
-    rainColor = btn.dataset.color;
-    document.querySelectorAll('.raincolor-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.dispatchEvent(new CustomEvent('matrixColorChange', { detail: rainColor }));
-    saveSettings();
-  }));
-
   // Character set
   document.querySelectorAll('.charset-btn').forEach(btn => btn.addEventListener('click', () => {
     charSetKey = btn.dataset.charset;
@@ -354,14 +346,23 @@
     saveSettings();
   }));
 
-  // Density
-  document.querySelectorAll('.density-btn').forEach(btn => btn.addEventListener('click', () => {
-    density = btn.dataset.density;
-    document.querySelectorAll('.density-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.dispatchEvent(new CustomEvent('matrixDensityChange', { detail: density }));
-    saveSettings();
-  }));
+  // Density — continuous slider (1–100 → 0.01–1.0 fraction)
+  const densitySlider = document.getElementById('density-slider');
+
+  function syncDensitySlider() {
+    if (!densitySlider) return;
+    const pct = ((+densitySlider.value - 1) / 99) * 100;
+    densitySlider.style.setProperty('--fill-pct', pct.toFixed(1) + '%');
+  }
+
+  if (densitySlider) {
+    densitySlider.addEventListener('input', () => {
+      density = densitySlider.value;
+      syncDensitySlider();
+      document.dispatchEvent(new CustomEvent('matrixDensityChange', { detail: density }));
+      saveSettings();
+    });
+  }
 
   // Glow toggle
   document.querySelectorAll('.glow-btn').forEach(btn => btn.addEventListener('click', () => {
@@ -385,7 +386,7 @@
   document.getElementById('reset-btn').addEventListener('click', () => {
     if (!confirm('Reset all settings to defaults?')) return;
     tileSize = 'large'; bgSpeed = '80'; glowEnabled = 'off';
-    rainColor = 'green'; charSetKey = 'classic'; density = 'dense'; tileLabels = 'hover';
+    charSetKey = 'classic'; density = '90'; tileLabels = 'hover';
     saveSettings(); applySettingsToUI(); buildPages();
   });
 
@@ -398,13 +399,13 @@
       syncSpeedSlider();
     }
     document.querySelectorAll('.glow-btn').forEach(b => b.classList.toggle('active', b.dataset.glow === glowEnabled));
-    document.querySelectorAll('.raincolor-btn').forEach(b => b.classList.toggle('active', b.dataset.color === rainColor));
     document.querySelectorAll('.charset-btn').forEach(b => b.classList.toggle('active', b.dataset.charset === charSetKey));
-    document.querySelectorAll('.density-btn').forEach(b => b.classList.toggle('active', b.dataset.density === density));
+    // Sync density slider
+    const densitySlider = document.getElementById('density-slider');
+    if (densitySlider) { densitySlider.value = density; syncDensitySlider(); }
     document.querySelectorAll('.labels-btn').forEach(b => b.classList.toggle('active', b.dataset.labels === tileLabels));
     document.documentElement.dataset.bgSpeed = bgSpeed;
     document.dispatchEvent(new CustomEvent('matrixGlowChange',    { detail: glowEnabled }));
-    document.dispatchEvent(new CustomEvent('matrixColorChange',   { detail: rainColor   }));
     document.dispatchEvent(new CustomEvent('matrixCharsetChange', { detail: charSetKey  }));
     document.dispatchEvent(new CustomEvent('matrixDensityChange', { detail: density     }));
     applyTileLabels();

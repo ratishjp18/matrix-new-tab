@@ -442,7 +442,7 @@ body:hover .settings-toggle,
 /* Wrapping variant — used for Rain Colour (15) */
 .btn-group--wrap { flex-wrap: wrap; gap: 5px; }
 
-.size-btn, .glow-btn, .raincolor-btn, .charset-btn, .density-btn, .labels-btn {
+.size-btn, .glow-btn, .charset-btn, .labels-btn {
   flex: 1; padding: 7px 8px; border-radius: 9px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.10);
@@ -451,33 +451,29 @@ body:hover .settings-toggle,
   transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
 .size-btn:hover, .glow-btn:hover,
-.raincolor-btn:hover, .charset-btn:hover, .density-btn:hover, .labels-btn:hover {
+.charset-btn:hover, .labels-btn:hover {
   background: rgba(255, 255, 255, 0.10); color: rgba(255, 255, 255, 0.90);
 }
 .size-btn.active, .glow-btn.active,
-.charset-btn.active, .density-btn.active, .labels-btn.active {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.45);
-  color: #ffffff;
-}
-
-/* Rain colour active state — uniform white indicator */
-.raincolor-btn.active {
+.charset-btn.active, .labels-btn.active {
   background: rgba(255, 255, 255, 0.14);
   border-color: rgba(255, 255, 255, 0.45);
   color: #ffffff;
 }
 
 /* ============================================================
-   Rain speed slider  — continuous range (1–100)
+   Rain speed + Density sliders  — continuous range (1–100)
+   Both sliders share identical styles.
    ============================================================ */
-.speed-slider-wrap {
+.speed-slider-wrap,
+.density-slider-wrap {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.speed-slider {
+.speed-slider,
+.density-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -485,7 +481,6 @@ body:hover .settings-toggle,
   border-radius: 2px;
   outline: none;
   cursor: pointer;
-  /* --fill-pct is set by JS; left = active, right = dim */
   background: linear-gradient(
     to right,
     rgba(255,255,255,0.75) 0%,
@@ -495,7 +490,8 @@ body:hover .settings-toggle,
   );
 }
 
-.speed-slider::-webkit-slider-thumb {
+.speed-slider::-webkit-slider-thumb,
+.density-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
@@ -505,29 +501,35 @@ body:hover .settings-toggle,
   box-shadow: 0 0 0 3px rgba(255,255,255,0.15);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.speed-slider::-webkit-slider-thumb:hover {
+.speed-slider::-webkit-slider-thumb:hover,
+.density-slider::-webkit-slider-thumb:hover {
   transform: scale(1.2);
   box-shadow: 0 0 0 4px rgba(255,255,255,0.25);
 }
-.speed-slider:focus-visible::-webkit-slider-thumb {
+.speed-slider:focus-visible::-webkit-slider-thumb,
+.density-slider:focus-visible::-webkit-slider-thumb {
   box-shadow: 0 0 0 4px rgba(255,255,255,0.35);
 }
 
-.speed-slider::-moz-range-thumb {
+.speed-slider::-moz-range-thumb,
+.density-slider::-moz-range-thumb {
   width: 16px; height: 16px;
   border-radius: 50%; border: none;
   background: #ffffff; cursor: pointer;
 }
-.speed-slider::-moz-range-track {
+.speed-slider::-moz-range-track,
+.density-slider::-moz-range-track {
   height: 3px; border-radius: 2px;
   background: rgba(255,255,255,0.14);
 }
-.speed-slider::-moz-range-progress {
+.speed-slider::-moz-range-progress,
+.density-slider::-moz-range-progress {
   height: 3px; border-radius: 2px;
   background: rgba(255,255,255,0.75);
 }
 
-.speed-labels {
+.speed-labels,
+.density-labels {
   display: flex;
   justify-content: space-between;
   font-size: 0.63rem;

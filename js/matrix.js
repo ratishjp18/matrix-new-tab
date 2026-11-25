@@ -113,7 +113,7 @@
   /* ============================================================
      SETTINGS
      ============================================================ */
-  let rainColor  = 'green';
+  let rainColor  = 'green';   // fixed — colour selector removed from settings
   let charSetKey = 'classic';
   let density    = 'dense';
   let useGlow    = false;   // kept for event compat; not applied per spec
@@ -154,6 +154,12 @@
     }
   }
 
+  /* Resolve density fraction from either numeric slider value or legacy name */
+  function densityFrac() {
+    const n = parseFloat(density);
+    if (!isNaN(n)) return Math.max(0.01, Math.min(1.0, n / 100));
+    return DENSITY_FRAC[density] ?? 0.65;
+  }
   /* ============================================================
      RESIZE / GRID / STREAMS
      ============================================================ */
@@ -190,7 +196,7 @@
   }
 
   function initStreams() {
-    const frac = DENSITY_FRAC[density] ?? 1.0;
+    const frac = densityFrac();
     streams       = new Array(cols);
     streamEnabled = new Array(cols);
 

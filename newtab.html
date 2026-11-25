@@ -76,27 +76,6 @@
       </section>
 
       <section class="settings-section">
-        <h3>Rain Colour</h3>
-        <div class="btn-group btn-group--wrap">
-          <button class="raincolor-btn active" data-color="green">Green</button>
-          <button class="raincolor-btn" data-color="blue">Blue</button>
-          <button class="raincolor-btn" data-color="red">Red</button>
-          <button class="raincolor-btn" data-color="white">White</button>
-          <button class="raincolor-btn" data-color="purple">Purple</button>
-          <button class="raincolor-btn" data-color="cyan">Cyan</button>
-          <button class="raincolor-btn" data-color="orange">Orange</button>
-          <button class="raincolor-btn" data-color="gold">Gold</button>
-          <button class="raincolor-btn" data-color="pink">Pink</button>
-          <button class="raincolor-btn" data-color="teal">Teal</button>
-          <button class="raincolor-btn" data-color="lime">Lime</button>
-          <button class="raincolor-btn" data-color="sky">Sky</button>
-          <button class="raincolor-btn" data-color="crimson">Crimson</button>
-          <button class="raincolor-btn" data-color="amber">Amber</button>
-          <button class="raincolor-btn" data-color="violet">Violet</button>
-        </div>
-      </section>
-
-      <section class="settings-section">
         <h3>Language</h3>
         <div class="btn-group">
           <button class="charset-btn active" data-charset="classic">Mix</button>
@@ -107,10 +86,14 @@
 
       <section class="settings-section">
         <h3>Density</h3>
-        <div class="btn-group">
-          <button class="density-btn" data-density="sparse">Sparse</button>
-          <button class="density-btn" data-density="normal">Normal</button>
-          <button class="density-btn active" data-density="dense">Dense</button>
+        <div class="density-slider-wrap">
+          <input type="range" id="density-slider" class="density-slider"
+                 min="1" max="100" step="1" value="90"
+                 aria-label="Rain density">
+          <div class="density-labels">
+            <span>Sparse</span>
+            <span>Dense</span>
+          </div>
         </div>
       </section>
 
