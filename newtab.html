@@ -97,20 +97,59 @@
         </div>
       </section>
 
-      <section class="settings-section">
+      <section class="settings-section settings-section--row">
         <h3>Glow</h3>
-        <div class="btn-group">
-          <button class="glow-btn" data-glow="on">On</button>
-          <button class="glow-btn active" data-glow="off">Off</button>
+        <label class="toggle-switch" aria-label="Toggle glow">
+          <input type="checkbox" id="glow-toggle" class="toggle-switch__input" role="switch">
+          <span class="toggle-switch__track" aria-hidden="true">
+            <span class="toggle-switch__thumb"></span>
+          </span>
+        </label>
+      </section>
+
+      <section class="settings-section">
+        <h3>Ambient Clock</h3>
+        <div class="settings-toggle-row">
+          <span>Show Clock &amp; Date</span>
+          <label class="toggle-switch" aria-label="Toggle clock visibility">
+            <input type="checkbox" id="clock-toggle" class="toggle-switch__input" role="switch" checked>
+            <span class="toggle-switch__track" aria-hidden="true">
+              <span class="toggle-switch__thumb"></span>
+            </span>
+          </label>
         </div>
       </section>
 
       <section class="settings-section">
-        <h3>Tile Labels</h3>
-        <div class="btn-group">
-          <button class="labels-btn active" data-labels="hover">On Hover</button>
-          <button class="labels-btn" data-labels="always">Always</button>
+        <h3>Idle Effects</h3>
+        <div class="settings-toggle-row">
+          <span>Idle Float</span>
+          <label class="toggle-switch" aria-label="Toggle idle float">
+            <input type="checkbox" id="idle-float-toggle" class="toggle-switch__input" role="switch" checked>
+            <span class="toggle-switch__track" aria-hidden="true">
+              <span class="toggle-switch__thumb"></span>
+            </span>
+          </label>
         </div>
+        <div class="settings-toggle-row">
+          <span>Idle Glow</span>
+          <label class="toggle-switch" aria-label="Toggle idle glow">
+            <input type="checkbox" id="idle-glow-toggle" class="toggle-switch__input" role="switch">
+            <span class="toggle-switch__track" aria-hidden="true">
+              <span class="toggle-switch__thumb"></span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section class="settings-section settings-section--row">
+        <h3>Always Show Labels</h3>
+        <label class="toggle-switch" aria-label="Toggle tile labels">
+          <input type="checkbox" id="labels-toggle" class="toggle-switch__input" role="switch">
+          <span class="toggle-switch__track" aria-hidden="true">
+            <span class="toggle-switch__thumb"></span>
+          </span>
+        </label>
       </section>
 
       <section class="settings-section">
