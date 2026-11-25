@@ -62,6 +62,10 @@
   let charSetKey      = 'classic';
   let density         = '90';
   let tileLabels      = 'hover';
+  let showClock       = true;
+  let idleFloat       = true;
+  let idleGlowOn      = false;
+  let clockFormat     = '24h';
   let currentPage     = 0;
   let totalPages      = 0;
   let isTransitioning = false;
@@ -73,10 +77,12 @@
   function loadSettings() {
     return new Promise(resolve => {
       if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.sync.get(['tileSize','bgSpeed','glowEnabled','charSetKey','density','tileLabels','storageVersion'], data => {
+        chrome.storage.sync.get(['tileSize','bgSpeed','glowEnabled','charSetKey','density','tileLabels',
+                                  'showClock','idleFloat','idleGlowOn','clockFormat','storageVersion'], data => {
           if (data.storageVersion !== STORAGE_VERSION) {
             tileSize = 'large'; bgSpeed = '80'; glowEnabled = 'off';
             charSetKey = 'classic'; density = '90'; tileLabels = 'hover';
+            showClock = true; idleFloat = true; idleGlowOn = false; clockFormat = '24h';
             chrome.storage.sync.clear(() => chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION }));
           } else {
             tileSize   = data.tileSize   || 'large';
@@ -91,6 +97,10 @@
             const densityMap = { sparse: '35', normal: '65', dense: '90' };
             density    = densityMap[rawDensity] || rawDensity;
             tileLabels = data.tileLabels || 'hover';
+            showClock   = data.showClock   !== undefined ? data.showClock   : true;
+            idleFloat   = data.idleFloat   !== undefined ? data.idleFloat   : true;
+            idleGlowOn  = data.idleGlowOn  !== undefined ? data.idleGlowOn  : false;
+            clockFormat = data.clockFormat || '24h';
           }
           resolve();
         });
@@ -100,7 +110,8 @@
 
   function saveSettings() {
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION });
+      chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, tileLabels,
+        showClock, idleFloat, idleGlowOn, clockFormat, storageVersion: STORAGE_VERSION });
     }
   }
 
@@ -172,6 +183,7 @@
       };
       tile.addEventListener('click', launch);
       tile.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); launch(); } });
+      tile.addEventListener('mousedown', e => e.preventDefault()); // stop browser focusing on click
       return tile;
     }
 
@@ -194,6 +206,7 @@
              data-fallback1="${escapeAttr(fallback1)}" data-fallback2="app-icons/fallback.svg">
       </div>
       <span class="tile__tooltip">${app.name}</span>`;
+    tile.addEventListener('mousedown', e => e.preventDefault()); // stop browser focusing on click
     return tile;
   }
 
@@ -384,11 +397,44 @@
     });
   }
 
+  // Show Clock & Date
+  const clockToggle = document.getElementById('clock-toggle');
+  if (clockToggle) {
+    clockToggle.addEventListener('change', () => {
+      showClock = clockToggle.checked;
+      applyClockVisibility();
+      saveSettings();
+    });
+  }
+
+  // Idle Float
+  const idleFloatToggle = document.getElementById('idle-float-toggle');
+  if (idleFloatToggle) {
+    idleFloatToggle.addEventListener('change', () => {
+      idleFloat = idleFloatToggle.checked;
+      applyIdleFloat();
+      saveSettings();
+    });
+  }
+
+  // Idle Glow
+  const idleGlowToggle = document.getElementById('idle-glow-toggle');
+  if (idleGlowToggle) {
+    idleGlowToggle.addEventListener('change', () => {
+      idleGlowOn = idleGlowToggle.checked;
+      if (!idleGlowOn) {
+        document.querySelectorAll('.tile--idle-glow').forEach(t => t.classList.remove('tile--idle-glow'));
+      }
+      saveSettings();
+    });
+  }
+
   // Reset
   document.getElementById('reset-btn').addEventListener('click', () => {
     if (!confirm('Reset all settings to defaults?')) return;
     tileSize = 'large'; bgSpeed = '80'; glowEnabled = 'off';
     charSetKey = 'classic'; density = '90'; tileLabels = 'hover';
+    showClock = true; idleFloat = true; idleGlowOn = false; clockFormat = '24h';
     saveSettings(); applySettingsToUI(); buildPages();
   });
 
@@ -406,6 +452,14 @@
     if (glowToggle) glowToggle.checked = glowEnabled === 'on';
     const labelsToggle = document.getElementById('labels-toggle');
     if (labelsToggle) labelsToggle.checked = tileLabels === 'always';
+    const clockToggle = document.getElementById('clock-toggle');
+    if (clockToggle) clockToggle.checked = showClock;
+    const idleFloatToggle = document.getElementById('idle-float-toggle');
+    if (idleFloatToggle) idleFloatToggle.checked = idleFloat;
+    const idleGlowToggle = document.getElementById('idle-glow-toggle');
+    if (idleGlowToggle) idleGlowToggle.checked = idleGlowOn;
+    applyClockVisibility();
+    applyIdleFloat();
     document.documentElement.dataset.bgSpeed = bgSpeed;
     document.dispatchEvent(new CustomEvent('matrixGlowChange',    { detail: glowEnabled }));
     document.dispatchEvent(new CustomEvent('matrixCharsetChange', { detail: charSetKey  }));
@@ -462,7 +516,9 @@
   (function setupIdleGlow() {
     let idleTimer, glowInterval;
     const startGlow = () => {
+      if (!idleGlowOn) return;
       glowInterval = setInterval(() => {
+        if (!idleGlowOn) { clearInterval(glowInterval); return; }
         const activePage = document.querySelectorAll('.page')[currentPage];
         if (!activePage) return;
         const tiles = [...activePage.querySelectorAll('.tile:not(.tile--empty):not(.tile--idle-glow)')];
@@ -508,6 +564,17 @@
   /* ----------------------------------------------------------
      Digital clock
   ---------------------------------------------------------- */
+  let _clockTick = null;   // exposed so format changes update immediately
+
+  function applyClockVisibility() {
+    const el = document.getElementById('matrix-clock');
+    if (el) el.style.display = showClock ? '' : 'none';
+  }
+
+  function applyIdleFloat() {
+    document.body.classList.toggle('no-idle-float', !idleFloat);
+  }
+
   function startClock() {
     const timeEl = document.getElementById('clock-time');
     const dateEl = document.getElementById('clock-date');
@@ -519,11 +586,28 @@
 
     function tick() {
       const now = new Date();
-      timeEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      if (clockFormat === '12h') {
+        const h    = now.getHours();
+        const h12  = h % 12 || 12;
+        const ampm = h < 12 ? 'AM' : 'PM';
+        timeEl.textContent = `${pad(h12)}:${pad(now.getMinutes())}:${pad(now.getSeconds())} ${ampm}`;
+      } else {
+        timeEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      }
       dateEl.textContent = `${DAYS[now.getDay()]} ${pad(now.getDate())} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
     }
+
+    _clockTick = tick;
     tick();
     setInterval(tick, 1000);
+
+    // Click the time to toggle 12 hr / 24 hr
+    timeEl.addEventListener('click', (e) => {
+      e.stopPropagation();   // prevent bubbling to tiles/grid below
+      clockFormat = clockFormat === '24h' ? '12h' : '24h';
+      tick();          // immediate update — no waiting for next second
+      saveSettings();
+    });
   }
 
   init();
