@@ -97,20 +97,24 @@
         </div>
       </section>
 
-      <section class="settings-section">
+      <section class="settings-section settings-section--row">
         <h3>Glow</h3>
-        <div class="btn-group">
-          <button class="glow-btn" data-glow="on">On</button>
-          <button class="glow-btn active" data-glow="off">Off</button>
-        </div>
+        <label class="toggle-switch" aria-label="Toggle glow">
+          <input type="checkbox" id="glow-toggle" class="toggle-switch__input" role="switch">
+          <span class="toggle-switch__track" aria-hidden="true">
+            <span class="toggle-switch__thumb"></span>
+          </span>
+        </label>
       </section>
 
-      <section class="settings-section">
-        <h3>Tile Labels</h3>
-        <div class="btn-group">
-          <button class="labels-btn active" data-labels="hover">On Hover</button>
-          <button class="labels-btn" data-labels="always">Always</button>
-        </div>
+      <section class="settings-section settings-section--row">
+        <h3>Always Show Labels</h3>
+        <label class="toggle-switch" aria-label="Toggle tile labels">
+          <input type="checkbox" id="labels-toggle" class="toggle-switch__input" role="switch">
+          <span class="toggle-switch__track" aria-hidden="true">
+            <span class="toggle-switch__thumb"></span>
+          </span>
+        </label>
       </section>
 
       <section class="settings-section">

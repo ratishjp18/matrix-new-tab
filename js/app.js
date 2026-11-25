@@ -364,23 +364,25 @@
     });
   }
 
-  // Glow toggle
-  document.querySelectorAll('.glow-btn').forEach(btn => btn.addEventListener('click', () => {
-    glowEnabled = btn.dataset.glow;
-    document.querySelectorAll('.glow-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.dispatchEvent(new CustomEvent('matrixGlowChange', { detail: glowEnabled }));
-    saveSettings();
-  }));
+  // Glow — toggle switch
+  const glowToggle = document.getElementById('glow-toggle');
+  if (glowToggle) {
+    glowToggle.addEventListener('change', () => {
+      glowEnabled = glowToggle.checked ? 'on' : 'off';
+      document.dispatchEvent(new CustomEvent('matrixGlowChange', { detail: glowEnabled }));
+      saveSettings();
+    });
+  }
 
-  // Tile labels
-  document.querySelectorAll('.labels-btn').forEach(btn => btn.addEventListener('click', () => {
-    tileLabels = btn.dataset.labels;
-    document.querySelectorAll('.labels-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    applyTileLabels();
-    saveSettings();
-  }));
+  // Tile labels — toggle switch
+  const labelsToggle = document.getElementById('labels-toggle');
+  if (labelsToggle) {
+    labelsToggle.addEventListener('change', () => {
+      tileLabels = labelsToggle.checked ? 'always' : 'hover';
+      applyTileLabels();
+      saveSettings();
+    });
+  }
 
   // Reset
   document.getElementById('reset-btn').addEventListener('click', () => {
@@ -392,18 +394,18 @@
 
   function applySettingsToUI() {
     document.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('active', b.dataset.size === tileSize));
-    // Sync speed slider position
+    // Sync speed slider
     const speedSlider = document.getElementById('speed-slider');
-    if (speedSlider) {
-      speedSlider.value = bgSpeed;
-      syncSpeedSlider();
-    }
-    document.querySelectorAll('.glow-btn').forEach(b => b.classList.toggle('active', b.dataset.glow === glowEnabled));
+    if (speedSlider) { speedSlider.value = bgSpeed; syncSpeedSlider(); }
     document.querySelectorAll('.charset-btn').forEach(b => b.classList.toggle('active', b.dataset.charset === charSetKey));
     // Sync density slider
     const densitySlider = document.getElementById('density-slider');
     if (densitySlider) { densitySlider.value = density; syncDensitySlider(); }
-    document.querySelectorAll('.labels-btn').forEach(b => b.classList.toggle('active', b.dataset.labels === tileLabels));
+    // Sync toggle switches
+    const glowToggle = document.getElementById('glow-toggle');
+    if (glowToggle) glowToggle.checked = glowEnabled === 'on';
+    const labelsToggle = document.getElementById('labels-toggle');
+    if (labelsToggle) labelsToggle.checked = tileLabels === 'always';
     document.documentElement.dataset.bgSpeed = bgSpeed;
     document.dispatchEvent(new CustomEvent('matrixGlowChange',    { detail: glowEnabled }));
     document.dispatchEvent(new CustomEvent('matrixCharsetChange', { detail: charSetKey  }));
