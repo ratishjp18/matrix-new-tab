@@ -1,341 +1,407 @@
 /* ============================================================
-   Matrix New Tab — matrix.js  (enhanced)
+   Matrix Digital Rain — state-based grid renderer  v3
    ─────────────────────────────────────────────────────────────
-   Features
-   ────────
-   • Depth rain — columns have random depth (font size 11–18 px,
-     varying speed & opacity) for a parallax feel
-   • 5 colour themes  — green / blue / red / white / purple
-   • 4 character sets — mixed / katakana / latin / numbers
-   • 3 density levels — sparse / normal / dense
-   • Phosphor glow    — toggle on/off
-   • CRT flicker      — random brief screen dimming
-   • Mouse repel      — rain fades around the cursor
-   • Click accelerate — clicking a column makes it rush down
-   • Konami code      — ↑↑↓↓←→←→BA → system override flash
-   • Neo messages     — periodic Matrix quotes fade in & out
-   • Pauses when tab is hidden
+   RENDERING MODEL
+   ───────────────
+   gChar[c*rows+r]   — character stored at each grid cell
+   gBright[c*rows+r] — brightness [0,1] stored at each cell
+
+   Every frame:
+     1. Canvas cleared to pure #000000
+     2. Active stream heads advance; current head cell is stamped
+        to brightness 1.0 every frame (not just on cell entry)
+     3. Every cell rendered exactly once at its brightness
+     4. Every brightness multiplied by DECAY (fades toward black)
+
+   Cells START at 0 (black). Visible characters only appear when
+   a stream passes through. No static pre-filled background grid.
+
+   WARM START: half the streams are seeded mid-screen with
+   pre-computed trail brightnesses so animation is visible
+   immediately on page load.
+
+   Settings events (from app.js):
+     matrixColorChange   matrixCharsetChange  matrixDensityChange
+     matrixGlowChange    matrixBgSpeedChange
    ============================================================ */
 
 (function () {
   'use strict';
 
   /* ============================================================
-     CONFIG
+     CONSTANTS
+     ============================================================ */
+  const CELL  = 25;    // grid cell size, CSS px (width AND height)
+  const FSIZE = 24;    // font-size, CSS px
+  const FONT  = `400 ${FSIZE}px Consolas, "Courier New", monospace`;
+
+  const DECAY = 0.92;  // per-frame brightness multiplier (0.92 → ~40-cell trail at 60fps)
+  const FLOOR = 0.06;  // brightness floor applied ONLY to previously-activated cells
+                       // keeps a faint residue after stream passes (≈ #000F00 for green)
+  const THRESH = 0.04; // below this, skip fillText (pure black)
+
+  /* ============================================================
+     CHARACTER SETS
      ============================================================ */
   const CHAR_SETS = {
-    mixed:    'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789ABCDEFZ@#$%&*',
-    katakana: 'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ',
-    latin:    'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-    numbers:  '0123456789+-*/=<>!?',
+    classic: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+    english: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+    numbers: '0123456789',
   };
 
-  const THEMES = {
-    green:  { head: '#c0ffc0', near: a => `rgba(0,255,65,${a})`,        trail: (a,r) => { const g=~~(40+215*(1-r)); return `rgba(0,${g},18,${a})`; },              glow: '#00ff41', scan: 'rgba(0,255,65,0.028)'   },
-    blue:   { head: '#c0dcff', near: a => `rgba(0,160,255,${a})`,       trail: (a,r) => { const g=~~(40+215*(1-r)); return `rgba(0,${g},255,${a})`; },             glow: '#0088ff', scan: 'rgba(0,160,255,0.025)'  },
-    red:    { head: '#ffc0c0', near: a => `rgba(255,32,32,${a})`,        trail: (a,r) => { const g=~~(30+200*(1-r)); return `rgba(${g},0,0,${a})`; },              glow: '#ff0000', scan: 'rgba(255,32,32,0.025)'   },
-    white:  { head: '#ffffff', near: a => `rgba(210,210,210,${a})`,      trail: (a,r) => { const g=~~(30+190*(1-r)); return `rgba(${g},${g},${g},${a})`; },        glow: '#ffffff', scan: 'rgba(200,200,200,0.022)' },
-    purple: { head: '#e0c0ff', near: a => `rgba(160,0,255,${a})`,        trail: (a,r) => { const g=~~(30+200*(1-r)); return `rgba(${~~(g*.5)},0,${g},${a})`; },   glow: '#8800ff', scan: 'rgba(140,0,255,0.025)'   },
+  /* ============================================================
+     COLOUR THEMES — [R, G, B] at brightness = 1.0
+     colour at b = rgb( R*b, G*b, B*b )
+     ============================================================ */
+  const THEME_MAX = {
+    green:   [  0, 255,   0],
+    blue:    [  0, 160, 255],
+    red:     [255,  32,  32],
+    white:   [220, 220, 220],
+    purple:  [170,   0, 255],
+    cyan:    [  0, 255, 255],
+    orange:  [255, 110,   0],
+    gold:    [255, 200,   0],
+    pink:    [255,   0, 128],
+    teal:    [  0, 200, 170],
+    lime:    [140, 255,   0],
+    sky:     [  0, 180, 255],
+    crimson: [220,  20,  60],
+    amber:   [255, 170,   0],
+    violet:  [138,  43, 226],
   };
+
+  /* Grayscale LUT for Konami override — fixed, computed once */
+  const WHITE_LUT = Array.from({ length: 256 }, (_, i) => `rgb(${i},${i},${i})`);
 
   const SPEED_MULT   = { slow: 0.30, normal: 1.00, fast: 2.50 };
-  const DENSITY_FRAC = { sparse: 0.35, normal: 0.65, dense: 1.00 };
-
-  const KONAMI   = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
-  const NEO_MSGS = ['Wake up, Neo...', 'The Matrix has you.', 'Follow the white rabbit.', 'Knock, knock, Neo.', 'Free your mind.'];
-
+  const DENSITY_FRAC = { sparse: 0.40, normal: 0.70, dense: 1.00 };
+  const KONAMI       = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown',
+                        'ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+  const NEO_MSGS     = ['Wake up, Neo...','The Matrix has you.',
+                        'Follow the white rabbit.','Knock, knock, Neo.','Free your mind.'];
   const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  /* ============================================================ */
 
+  /* ============================================================
+     CANVAS
+     ============================================================ */
   const canvas = document.getElementById('matrix');
   const ctx    = canvas.getContext('2d');
+  const DPR    = window.devicePixelRatio || 1;
 
-  let animId   = null;
-  let lastTime = 0;
-  let columns  = [];
+  let animId = null, lastTime = 0;
+  let viewW = 0, viewH = 0, cols = 0, rows = 0;
 
-  /* -- Configurable state (driven by settings events) -- */
-  let useGlow    = true;
-  let rainColor  = 'green';
-  let charSetKey = 'mixed';
-  let density    = 'normal';
+  /* ============================================================
+     GRID STATE
+     Index formula: c * rows + r
+     ============================================================ */
+  let gChar   = [];    // character string per cell
+  let gBright = null;  // Float32Array, brightness per cell
 
-  /* -- Mouse -- */
+  /* ============================================================
+     STREAM STATE
+     ============================================================ */
+  let streams       = [];   // { y, speed, active }
+  let streamEnabled = [];   // boolean per column
+
+  /* ============================================================
+     COLOUR LUT  (256 entries, rebuilt on theme change)
+     ============================================================ */
+  let colorLUT = [];
+
+  /* ============================================================
+     SETTINGS
+     ============================================================ */
+  let rainColor  = 'green';   // fixed — colour selector removed from settings
+  let charSetKey = 'classic';
+  let density    = 'dense';
+  let useGlow    = false;   // kept for event compat; not applied per spec
+
+  /* ============================================================
+     EXTRAS
+     ============================================================ */
   let mouseX = -9999, mouseY = -9999;
+  let konamiBuffer = [], konamiActive = false, konamiTimer = 0;
+  let neoTimer = 90 + Math.random() * 90, neoPhase = 'idle',
+      neoOpacity = 0, neoEl = null;
 
-  /* -- Click-to-accelerate -- */
-  // stored per-column in col.boostTimer
-
-  /* -- Konami -- */
-  let konamiBuffer = [];
-  let konamiActive = false;
-  let konamiTimer  = 0;
-
-  /* -- CRT flicker -- */
-  let flickerTimer  = 8 + Math.random() * 20;
-  let flickerActive = false;
-  let flickerFrames = 0;
-
-  /* -- Neo message -- */
-  let neoTimer   = 90 + Math.random() * 90;
-  let neoPhase   = 'idle';          // idle | fadein | show | fadeout
-  let neoOpacity = 0;
-  let neoEl      = null;
-
-  /* ----------------------------------------------------------
-     Speed helper
-  ---------------------------------------------------------- */
-  function mult() {
+  /* ============================================================
+     HELPERS
+     ============================================================ */
+  function speedMult() {
     if (REDUCED_MOTION) return 0;
-    const s = document.documentElement.dataset.bgSpeed || 'fast';
-    return SPEED_MULT[s] ?? 1.0;
+    const raw = document.documentElement.dataset.bgSpeed || '80';
+    const n   = parseFloat(raw);
+    // Numeric value from slider (1–100) → multiplier 0.025–2.5
+    if (!isNaN(n)) return n * 0.025;
+    // Legacy named values (backward compat)
+    return SPEED_MULT[raw] ?? 1.0;
   }
 
-  /* ----------------------------------------------------------
-     Random character from current set
-  ---------------------------------------------------------- */
   function rndChar() {
-    const ch = CHAR_SETS[charSetKey] || CHAR_SETS.mixed;
-    return ch[Math.floor(Math.random() * ch.length)];
+    const ch = CHAR_SETS[charSetKey] || CHAR_SETS.classic;
+    return ch[(Math.random() * ch.length) | 0];
   }
 
-  /* ----------------------------------------------------------
-     Canvas resize
-  ---------------------------------------------------------- */
-  function resize() {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-    initColumns();
-  }
-
-  /* ----------------------------------------------------------
-     Initialise columns with depth variation
-  ---------------------------------------------------------- */
-  function initColumns() {
-    columns = [];
-    const W    = canvas.width;
-    const frac = DENSITY_FRAC[density] ?? 0.65;
-    const BASE_COL = 16; // base column width
-
-    for (let xi = 0; xi < Math.floor(W / BASE_COL); xi++) {
-      if (Math.random() > frac) continue;
-      columns.push(newColumn(xi * BASE_COL));
+  function buildColorLUT() {
+    const [mr, mg, mb] = THEME_MAX[rainColor] || THEME_MAX.green;
+    colorLUT = new Array(256);
+    for (let i = 0; i < 256; i++) {
+      const b = i / 255;
+      colorLUT[i] =
+        `rgb(${(mr*b+.5)|0},${(mg*b+.5)|0},${(mb*b+.5)|0})`;
     }
   }
 
-  function newColumn(baseX) {
-    // Depth: 0 = far/background, 1 = near/foreground
-    const depth      = Math.random();
-    const fontSize   = Math.round(11 + depth * 7);        // 11–18 px
-    const opacitySc  = 0.40 + depth * 0.60;               // dimmer far away
-    const speedBase  = (0.30 + depth * 1.10) * (0.80 + Math.random() * 0.40);
-    const trailLen   = 6 + Math.floor(Math.random() * 14);  // 6–20 (was 8–32)
+  /* Resolve density fraction from either numeric slider value or legacy name */
+  function densityFrac() {
+    const n = parseFloat(density);
+    if (!isNaN(n)) return Math.max(0.01, Math.min(1.0, n / 100));
+    return DENSITY_FRAC[density] ?? 0.65;
+  }
+  /* ============================================================
+     RESIZE / GRID / STREAMS
+     ============================================================ */
+  function resize() {
+    viewW = window.innerWidth;
+    viewH = window.innerHeight;
 
-    return {
-      x:          baseX + (Math.random() - 0.5) * 4,      // slight x jitter
-      y:          Math.random() * -(canvas.height / fontSize) * 1.8,
-      speed:      speedBase,
-      trailLen,
-      bright:     Math.random() > 0.88,
-      mutRate:    0.06 + Math.random() * 0.22,
-      chars:      {},
-      fontSize,
-      opacitySc,
-      depth,
-      boostTimer: 0,
-      boost:      1.0,
-    };
+    // Physical backing pixels = logical CSS pixels × DPR
+    canvas.width  = Math.round(viewW * DPR);
+    canvas.height = Math.round(viewH * DPR);
+    canvas.style.width  = viewW + 'px';
+    canvas.style.height = viewH + 'px';
+    // All subsequent draw calls use CSS-pixel coordinates
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    cols = Math.floor(viewW / CELL);
+    rows = Math.floor(viewH / CELL);
+
+    initGrid();
+    initStreams();
   }
 
-  /* ----------------------------------------------------------
-     Neo message overlay
-  ---------------------------------------------------------- */
+  function initGrid() {
+    const n = cols * rows;
+    gChar   = new Array(n);
+    gBright = new Float32Array(n);
+    // ALL cells start at brightness=0 (pure black).
+    // Characters are assigned now so they're ready when a stream
+    // stamps them, and for the warm-start pre-seeding below.
+    for (let i = 0; i < n; i++) {
+      gChar[i]   = rndChar();
+      gBright[i] = 0;
+    }
+  }
+
+  function initStreams() {
+    const frac = densityFrac();
+    streams       = new Array(cols);
+    streamEnabled = new Array(cols);
+
+    for (let c = 0; c < cols; c++) {
+      const enabled = Math.random() < frac;
+      streamEnabled[c] = enabled;
+
+      if (!enabled) {
+        streams[c] = { y: -(rows * 2), speed: 0.4 + Math.random() * 1.1 };
+        continue;
+      }
+
+      const speed = 0.4 + Math.random() * 1.1;
+
+      /* ── Warm start ──────────────────────────────────────────
+         Half the columns seed their stream mid-screen so the
+         animation is visually active from frame 1. The other
+         half start above the viewport for natural stagger.      */
+      if (Math.random() < 0.5) {
+        // Start somewhere in the visible area
+        const headRow = (Math.random() * rows) | 0;
+        streams[c] = { y: headRow, speed };
+
+        // Pre-paint the trail above the head with decayed brightness
+        for (let r = headRow; r >= 0; r--) {
+          const dist  = headRow - r;             // 0 at head, increases upward
+          const b     = Math.pow(DECAY, dist);   // brightness falls off with distance
+          if (b < THRESH) break;                 // too dim, stop pre-seeding
+          const idx = c * rows + r;
+          gBright[idx] = b;
+          // char already randomised in initGrid
+        }
+      } else {
+        // Start above viewport — full natural drop
+        streams[c] = {
+          y:     -((Math.random() * rows) | 0),
+          speed,
+        };
+      }
+    }
+  }
+
+  /* ============================================================
+     NEO OVERLAY
+     ============================================================ */
   function createNeoEl() {
     neoEl = document.createElement('div');
     neoEl.style.cssText = [
-      'position:fixed', 'top:50%', 'left:50%',
+      'position:fixed','top:50%','left:50%',
       'transform:translate(-50%,-50%)',
-      'pointer-events:none', 'z-index:450',
-      'font-family:monospace', 'font-size:clamp(1.1rem,2.5vw,1.8rem)',
-      'letter-spacing:0.18em', 'text-align:center',
-      'color:#00ff41',
-      'text-shadow:0 0 16px #00ff41,0 0 32px #00ff41',
-      'opacity:0', 'transition:none',
-      'white-space:nowrap',
+      'pointer-events:none','z-index:450',
+      'font-family:monospace','font-size:clamp(1.1rem,2.5vw,1.8rem)',
+      'letter-spacing:0.18em','text-align:center',
+      'color:#00ff00','opacity:0','white-space:nowrap',
     ].join(';');
     document.body.appendChild(neoEl);
   }
 
-  function updateNeo(dtSec) {
-    if (konamiActive) return; // konami takes over the element
-
+  function updateNeo(s) {
+    if (konamiActive) return;
     if (neoPhase === 'idle') {
-      neoTimer -= dtSec;
+      neoTimer -= s;
       if (neoTimer <= 0) {
-        neoEl.textContent = NEO_MSGS[Math.floor(Math.random() * NEO_MSGS.length)];
-        neoEl.style.color      = '#00ff41';
-        neoEl.style.textShadow = '0 0 16px #00ff41,0 0 32px #00ff41';
+        neoEl.textContent = NEO_MSGS[(Math.random() * NEO_MSGS.length) | 0];
+        neoEl.style.color = '#00ff00';
         neoPhase = 'fadein'; neoOpacity = 0;
       }
     } else if (neoPhase === 'fadein') {
-      neoOpacity = Math.min(1, neoOpacity + dtSec * 1.0);
+      neoOpacity = Math.min(1, neoOpacity + s);
       neoEl.style.opacity = neoOpacity;
       if (neoOpacity >= 1) { neoPhase = 'show'; neoTimer = 3.5; }
     } else if (neoPhase === 'show') {
-      neoTimer -= dtSec;
+      neoTimer -= s;
       if (neoTimer <= 0) neoPhase = 'fadeout';
     } else if (neoPhase === 'fadeout') {
-      neoOpacity = Math.max(0, neoOpacity - dtSec * 0.7);
+      neoOpacity = Math.max(0, neoOpacity - s * 0.7);
       neoEl.style.opacity = neoOpacity;
       if (neoOpacity <= 0) { neoPhase = 'idle'; neoTimer = 90 + Math.random() * 90; }
     }
   }
 
-  /* ----------------------------------------------------------
-     CRT flicker
-  ---------------------------------------------------------- */
-  function updateFlicker(dtSec) {
-    if (REDUCED_MOTION) return;
-    if (!flickerActive) {
-      flickerTimer -= dtSec;
-      if (flickerTimer <= 0) {
-        flickerActive = true;
-        flickerFrames = 1 + Math.floor(Math.random() * 3);
-        canvas.style.opacity = (0.55 + Math.random() * 0.30).toString();
-        flickerTimer = 10 + Math.random() * 25;
-      }
-    } else {
-      if (--flickerFrames <= 0) { flickerActive = false; canvas.style.opacity = '1'; }
-    }
-  }
-
-  /* ----------------------------------------------------------
-     Konami effect
-  ---------------------------------------------------------- */
   function triggerKonami() {
-    konamiActive = true;
-    konamiTimer  = 3.0;
-    neoEl.style.opacity    = '1';
-    neoEl.style.color      = '#ffffff';
-    neoEl.style.textShadow = '0 0 20px #fff,0 0 60px #fff,0 0 100px #fff';
-    neoEl.textContent      = '// SYSTEM OVERRIDE //';
-    neoPhase = 'idle'; neoTimer = 20; // reset neo after konami
+    konamiActive = true; konamiTimer = 3.0;
+    neoEl.style.opacity = '1';
+    neoEl.style.color   = '#ffffff';
+    neoEl.textContent   = '// SYSTEM OVERRIDE //';
+    neoPhase = 'idle'; neoTimer = 20;
   }
 
-  function updateKonami(dtSec) {
+  function updateKonami(s) {
     if (!konamiActive) return;
-    konamiTimer -= dtSec;
-    if (konamiTimer <= 0) {
-      konamiActive = false;
-      neoEl.style.opacity = '0';
-    }
+    konamiTimer -= s;
+    if (konamiTimer <= 0) { konamiActive = false; neoEl.style.opacity = '0'; }
   }
 
-  /* ----------------------------------------------------------
-     Draw frame
-  ---------------------------------------------------------- */
+  /* ============================================================
+     DRAW FRAME
+     ============================================================ */
   function drawFrame(dt) {
-    const dtSec = dt / 1000;
-    const m     = mult();
-    const theme = THEMES[rainColor] || THEMES.green;
+    const dtSec   = dt / 1000;
+    const m       = speedMult();
 
-    // Update effects
     updateNeo(dtSec);
-    updateFlicker(dtSec);
     updateKonami(dtSec);
 
-    // Fade to black — increases WITH speed so trail length stays consistent
-    const fade = 0.04 + m * 0.025;   // slow≈0.05  normal≈0.065  fast≈0.10
-    ctx.fillStyle = `rgba(0,0,0,${fade})`;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    /* ── 1. Clear to pure black ─────────────────────────────── */
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, viewW, viewH);
 
-    // No sort needed — depth variation is per-column opacity, not draw-order dependent
+    /* ── 2. Advance streams ─────────────────────────────────── */
+    if (m > 0) {
+      const advance = m * (dt / 16.667);  // rows this frame, normalised to 60 fps
 
-    columns.forEach(col => {
-      const { fontSize: fs, opacitySc, bright } = col;
-      const headRow = Math.floor(col.y);
+      for (let c = 0; c < cols; c++) {
+        if (!streamEnabled[c]) continue;
+        const s = streams[c];
 
-      ctx.font      = `${fs - 2}px monospace`;
-      ctx.textAlign = 'left';
+        const prevRow = Math.floor(s.y);
+        s.y += s.speed * advance;
+        const currRow = Math.floor(s.y);
 
-      // Mouse repel: compute proximity factor (0 = fully repelled, 1 = unaffected)
-      const dxM = Math.abs(col.x - mouseX);
-      const repelX = dxM < 90 ? dxM / 90 : 1.0;
-
-      for (let j = col.trailLen; j >= 0; j--) {
-        const row = headRow - j;
-        if (row < 0) continue;
-        const py = row * fs;
-        if (py > canvas.height + fs) continue;
-
-        // Mouse repel on Y axis
-        const dyM    = Math.abs(py - mouseY);
-        const repelY = dyM < 90 ? dyM / 90 : 1.0;
-        const repel  = Math.min(repelX, repelY);
-
-        // Mutate character
-        if (!col.chars[row] || Math.random() < col.mutRate) col.chars[row] = rndChar();
-
-        const relDist = j / col.trailLen; // 0 = head, 1 = tail
-
-        if (j === 0) {
-          ctx.fillStyle = konamiActive ? '#ffffff' : (bright ? theme.head : theme.near(0.9 * opacitySc));
-          if (useGlow) { ctx.shadowColor = konamiActive ? '#fff' : theme.glow; ctx.shadowBlur = bright ? 18 : 10; }
-        } else if (j === 1) {
-          ctx.fillStyle = konamiActive ? '#eeeeee' : theme.near(0.9 * opacitySc);
-          if (useGlow) { ctx.shadowColor = konamiActive ? '#fff' : theme.glow; ctx.shadowBlur = 7; }
-        } else if (j < 5) {
-          const a = (1 - (j / 5) * 0.45) * opacitySc;
-          ctx.fillStyle = konamiActive ? `rgba(230,230,230,${a})` : theme.near(a);
-          if (useGlow && j < 3) { ctx.shadowColor = konamiActive ? '#fff' : theme.glow; ctx.shadowBlur = 3; }
-          else ctx.shadowBlur = 0;
-        } else {
-          const a = Math.pow(1 - relDist, 2.2) * 0.80 * opacitySc;
-          const g = ~~(40 + 215 * (1 - relDist));
-          ctx.fillStyle = konamiActive ? `rgba(${g},${g},${g},${a})` : theme.trail(a, relDist);
-          ctx.shadowBlur = 0;
+        /* Stamp every newly entered row */
+        for (let r = prevRow + 1; r <= currRow; r++) {
+          if (r >= 0 && r < rows) {
+            const idx    = c * rows + r;
+            gChar[idx]   = rndChar();
+            gBright[idx] = 1.0;
+          }
         }
 
-        ctx.globalAlpha = repel;
-        ctx.fillText(col.chars[row], col.x, py);
-        ctx.globalAlpha = 1;
-        ctx.shadowBlur  = 0;
+        /* Always keep the CURRENT head cell at maximum brightness.
+           Without this re-stamp, the head flickers as DECAY applies
+           between frames whenever the head doesn't cross a row boundary. */
+        if (currRow >= 0 && currRow < rows) {
+          gBright[c * rows + currRow] = 1.0;
+        }
+
+        /* Reset when head exits bottom */
+        if (s.y > rows + 2) {
+          s.y     = -(1 + Math.random() * 3);   // very short pause, restart quickly
+          s.speed = 0.4 + Math.random() * 1.1;
+        }
       }
+    }
 
-      // Boost decay
-      if (col.boostTimer > 0) {
-        col.boostTimer = Math.max(0, col.boostTimer - dtSec);
-        col.boost = 1 + col.boostTimer * 5;
-      } else {
-        col.boost = 1.0;
+    /* ── 3. Render cells + decay ─────────────────────────────── */
+    ctx.font         = FONT;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowBlur   = 0;
+    ctx.shadowColor  = 'transparent';
+
+    for (let c = 0; c < cols; c++) {
+      const cx = (c * CELL + (CELL >> 1)) | 0;  // integer cell centre x
+
+      // Mouse-repel horizontal
+      const dxM    = Math.abs(cx - mouseX);
+      const repelX = dxM < 90 ? dxM / 90 : 1.0;
+
+      for (let r = 0; r < rows; r++) {
+        const idx = c * rows + r;
+        const b   = gBright[idx];
+
+        /* ── Render ─────────────────────────────────────────── */
+        if (b >= THRESH) {
+          const cy = (r * CELL + (CELL >> 1)) | 0; // integer cell centre y
+
+          // Mouse-repel vertical
+          const dyM    = Math.abs(cy - mouseY);
+          const repelY = dyM < 90 ? dyM / 90 : 1.0;
+          const repel  = repelX < repelY ? repelX : repelY;
+
+          const lutIdx = Math.min(255, (b * 255 + 0.5) | 0);
+          ctx.fillStyle = konamiActive ? WHITE_LUT[lutIdx] : colorLUT[lutIdx];
+
+          if (repel < 0.999) {
+            ctx.globalAlpha = repel;
+            ctx.fillText(gChar[idx], cx, cy);
+            ctx.globalAlpha = 1.0;
+          } else {
+            ctx.fillText(gChar[idx], cx, cy);
+          }
+        }
+
+        /* ── Decay brightness ─────────────────────────────────
+           • If cell was never activated (b === 0): stays black.
+           • If cell was activated: decay toward FLOOR, not to 0.
+             This keeps a faint residue after the stream leaves —
+             the "dim background" texture builds up naturally.    */
+        if (b > 0) {
+          const nb = b * DECAY;
+          gBright[idx] = nb < FLOOR ? FLOOR : nb;
+        }
+
+        /* ── Occasional character mutation in mid-trail ──────── */
+        if (b > THRESH && b < 0.8 && Math.random() < 0.012) {
+          gChar[idx] = rndChar();
+        }
       }
-
-      // Advance
-      col.y += col.speed * col.boost * m * (dt / 16);
-
-      // Memory cleanup
-      const oldRow = headRow - col.trailLen - 10;
-      if (oldRow > 0) delete col.chars[oldRow];
-
-      // Reset off-screen
-      if (col.y * fs > canvas.height + col.trailLen * fs * 2 && Math.random() > 0.97) {
-        col.y        = -col.trailLen - Math.random() * 30;
-        col.chars    = {};
-        col.trailLen = 6 + Math.floor(Math.random() * 14);
-        col.bright   = Math.random() > 0.88;
-      }
-    });
-
-    // CRT scanline overlay
-    ctx.fillStyle = theme.scan;
-    for (let y = 0; y < canvas.height; y += 4) {
-      ctx.fillRect(0, y, canvas.width, 1);
     }
   }
 
-  /* ----------------------------------------------------------
-     Animation loop
-  ---------------------------------------------------------- */
+  /* ============================================================
+     LOOP
+     ============================================================ */
   function animate(ts) {
     const dt = Math.min(ts - lastTime, 100);
     lastTime = ts;
@@ -353,48 +419,54 @@
     if (animId) { cancelAnimationFrame(animId); animId = null; }
   }
 
-  /* ----------------------------------------------------------
-     Init
-  ---------------------------------------------------------- */
+  /* ============================================================
+     INIT
+     ============================================================ */
   function init() {
+    buildColorLUT();
     resize();
     createNeoEl();
     if (REDUCED_MOTION) { drawFrame(0); return; }
     startLoop();
   }
 
-  /* ----------------------------------------------------------
-     Events
-  ---------------------------------------------------------- */
+  /* ============================================================
+     EVENTS
+     ============================================================ */
   document.addEventListener('visibilitychange', () => {
     document.hidden ? stopLoop() : startLoop();
   });
-
   document.addEventListener('matrixBgSpeedChange', startLoop);
+  document.addEventListener('matrixGlowChange', e => { useGlow = e.detail === 'on'; });
+  document.addEventListener('matrixColorChange', e => { rainColor = e.detail; buildColorLUT(); });
+  document.addEventListener('matrixCharsetChange', e => {
+    charSetKey = e.detail;
+    if (gChar) { const n = cols*rows; for (let i=0;i<n;i++) gChar[i]=rndChar(); }
+  });
+  document.addEventListener('matrixDensityChange', e => { density = e.detail; initStreams(); });
 
-  document.addEventListener('matrixGlowChange',    e => { useGlow    = e.detail === 'on'; if (!useGlow) ctx.shadowBlur = 0; });
-  document.addEventListener('matrixColorChange',   e => { rainColor  = e.detail; });
-  document.addEventListener('matrixCharsetChange', e => { charSetKey = e.detail; columns.forEach(c => { c.chars = {}; }); });
-  document.addEventListener('matrixDensityChange', e => { density    = e.detail; initColumns(); });
+  document.addEventListener('mousemove',  e => { mouseX = e.clientX; mouseY = e.clientY; });
+  document.addEventListener('mouseleave', ()  => { mouseX = -9999; mouseY = -9999; });
 
-  // Mouse tracking for repel
-  document.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
-  document.addEventListener('mouseleave', () => { mouseX = -9999; mouseY = -9999; });
-
-  // Click: accelerate nearest column
   canvas.addEventListener('click', e => {
-    let best = null, bestDist = Infinity;
-    columns.forEach(col => { const d = Math.abs(col.x - e.clientX); if (d < bestDist) { bestDist = d; best = col; } });
-    if (best) { best.boostTimer = 1.8; }
+    let best = -1, bestDist = Infinity;
+    for (let c = 0; c < cols; c++) {
+      const d = Math.abs(c * CELL + (CELL >> 1) - e.clientX);
+      if (d < bestDist) { bestDist = d; best = c; }
+    }
+    if (best >= 0) {
+      streamEnabled[best] = true;
+      streams[best].speed = Math.min(4, (streams[best].speed || 1) * 1.8);
+    }
   });
 
-  // Konami code listener
   document.addEventListener('keydown', e => {
     konamiBuffer.push(e.key);
     if (konamiBuffer.length > KONAMI.length) konamiBuffer.shift();
-    if (konamiBuffer.join(',') === KONAMI.join(',')) { konamiBuffer = []; triggerKonami(); }
+    if (konamiBuffer.join(',') === KONAMI.join(',')) { konamiBuffer=[]; triggerKonami(); }
   });
 
   window.addEventListener('resize', resize);
   init();
+
 })();

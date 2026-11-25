@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-bg-speed="fast">
+<html lang="en" data-bg-speed="80">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -64,48 +64,44 @@
 
       <section class="settings-section">
         <h3>Rain Speed</h3>
-        <div class="btn-group">
-          <button class="bgspeed-btn" data-bgspeed="slow">Slow</button>
-          <button class="bgspeed-btn" data-bgspeed="normal">Normal</button>
-          <button class="bgspeed-btn active" data-bgspeed="fast">Fast</button>
+        <div class="speed-slider-wrap">
+          <input type="range" id="speed-slider" class="speed-slider"
+                 min="1" max="100" step="1" value="80"
+                 aria-label="Rain speed">
+          <div class="speed-labels">
+            <span>Slow</span>
+            <span>Fast</span>
+          </div>
         </div>
       </section>
 
       <section class="settings-section">
-        <h3>Rain Colour</h3>
+        <h3>Language</h3>
         <div class="btn-group">
-          <button class="raincolor-btn active" data-color="green">Green</button>
-          <button class="raincolor-btn" data-color="blue">Blue</button>
-          <button class="raincolor-btn" data-color="red">Red</button>
-          <button class="raincolor-btn" data-color="white">White</button>
-          <button class="raincolor-btn" data-color="purple">Purple</button>
-        </div>
-      </section>
-
-      <section class="settings-section">
-        <h3>Characters</h3>
-        <div class="btn-group">
-          <button class="charset-btn active" data-charset="mixed">Mixed</button>
-          <button class="charset-btn" data-charset="katakana">Kana</button>
-          <button class="charset-btn" data-charset="latin">Latin</button>
-          <button class="charset-btn" data-charset="numbers">0-9</button>
+          <button class="charset-btn active" data-charset="classic">Mix</button>
+          <button class="charset-btn" data-charset="english">English</button>
+          <button class="charset-btn" data-charset="numbers">Numbers</button>
         </div>
       </section>
 
       <section class="settings-section">
         <h3>Density</h3>
-        <div class="btn-group">
-          <button class="density-btn" data-density="sparse">Sparse</button>
-          <button class="density-btn active" data-density="normal">Normal</button>
-          <button class="density-btn" data-density="dense">Dense</button>
+        <div class="density-slider-wrap">
+          <input type="range" id="density-slider" class="density-slider"
+                 min="1" max="100" step="1" value="90"
+                 aria-label="Rain density">
+          <div class="density-labels">
+            <span>Sparse</span>
+            <span>Dense</span>
+          </div>
         </div>
       </section>
 
       <section class="settings-section">
         <h3>Glow</h3>
         <div class="btn-group">
-          <button class="glow-btn active" data-glow="on">On</button>
-          <button class="glow-btn" data-glow="off">Off</button>
+          <button class="glow-btn" data-glow="on">On</button>
+          <button class="glow-btn active" data-glow="off">Off</button>
         </div>
       </section>
 
