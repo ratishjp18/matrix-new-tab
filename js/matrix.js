@@ -121,7 +121,6 @@
   /* ============================================================
      EXTRAS
      ============================================================ */
-  let mouseX = -9999, mouseY = -9999;
   let konamiBuffer = [], konamiActive = false, konamiTimer = 0;
   let neoTimer = 90 + Math.random() * 90, neoPhase = 'idle',
       neoOpacity = 0, neoEl = null;
@@ -352,10 +351,6 @@
     for (let c = 0; c < cols; c++) {
       const cx = (c * CELL + (CELL >> 1)) | 0;  // integer cell centre x
 
-      // Mouse-repel horizontal
-      const dxM    = Math.abs(cx - mouseX);
-      const repelX = dxM < 90 ? dxM / 90 : 1.0;
-
       for (let r = 0; r < rows; r++) {
         const idx = c * rows + r;
         const b   = gBright[idx];
@@ -364,21 +359,9 @@
         if (b >= THRESH) {
           const cy = (r * CELL + (CELL >> 1)) | 0; // integer cell centre y
 
-          // Mouse-repel vertical
-          const dyM    = Math.abs(cy - mouseY);
-          const repelY = dyM < 90 ? dyM / 90 : 1.0;
-          const repel  = repelX < repelY ? repelX : repelY;
-
           const lutIdx = Math.min(255, (b * 255 + 0.5) | 0);
           ctx.fillStyle = konamiActive ? WHITE_LUT[lutIdx] : colorLUT[lutIdx];
-
-          if (repel < 0.999) {
-            ctx.globalAlpha = repel;
-            ctx.fillText(gChar[idx], cx, cy);
-            ctx.globalAlpha = 1.0;
-          } else {
-            ctx.fillText(gChar[idx], cx, cy);
-          }
+          ctx.fillText(gChar[idx], cx, cy);
         }
 
         /* ── Decay brightness ─────────────────────────────────
@@ -444,9 +427,6 @@
     if (gChar) { const n = cols*rows; for (let i=0;i<n;i++) gChar[i]=rndChar(); }
   });
   document.addEventListener('matrixDensityChange', e => { density = e.detail; initStreams(); });
-
-  document.addEventListener('mousemove',  e => { mouseX = e.clientX; mouseY = e.clientY; });
-  document.addEventListener('mouseleave', ()  => { mouseX = -9999; mouseY = -9999; });
 
   canvas.addEventListener('click', e => {
     let best = -1, bestDist = Infinity;
