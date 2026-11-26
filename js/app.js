@@ -7,7 +7,7 @@
 (function () {
   'use strict';
 
-  const STORAGE_VERSION = 4;   // bumped — language auto-detection + 15 colour presets
+  const STORAGE_VERSION = 9;   // bumped — local speedtest icon
   const COLS            = 6;
   const ROWS            = 2;
   const PAGE_SIZE       = COLS * ROWS;
@@ -17,18 +17,18 @@
      Page 1 apps
   ---------------------------------------------------------- */
   const PAGE1_APPS = [
-    { id: 'google',     name: 'Google',      url: 'https://www.google.com',          icon: 'https://logo.clearbit.com/google.com',                                                                                            glowColor: 'rgba(66,133,244,0.55)' },
-    { id: 'gmail',      name: 'Gmail',       url: 'https://mail.google.com',         icon: 'https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://mail.google.com&size=256',    glowColor: 'rgba(234,67,53,0.55)'  },
-    { id: 'twitter',    name: 'Twitter',     url: 'https://x.com',                   icon: 'https://logo.clearbit.com/x.com',                                                                                                 glowColor: 'rgba(200,200,200,0.40)'},
-    { id: 'chatgpt',    name: 'ChatGPT',     url: 'https://chat.openai.com',         icon: 'https://logo.clearbit.com/openai.com',                                                                                            glowColor: 'rgba(16,163,127,0.55)' },
-    { id: 'gemini',     name: 'Gemini',      url: 'https://gemini.google.com',       icon: 'https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://gemini.google.com&size=256', glowColor: 'rgba(66,133,244,0.55)' },
-    { id: 'claude',     name: 'Claude',      url: 'https://claude.ai',               icon: 'https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://claude.ai&size=256',         glowColor: 'rgba(212,107,64,0.55)' },
-    { id: 'strava',     name: 'Strava',      url: 'https://www.strava.com/dashboard',icon: 'https://logo.clearbit.com/strava.com',                                                                                            glowColor: 'rgba(252,76,2,0.55)'   },
-    { id: 'speedtest',  name: 'Speedtest',   url: 'https://www.speedtest.net/',      icon: 'https://logo.clearbit.com/speedtest.net',                                                                                         glowColor: 'rgba(0,185,150,0.55)'  },
+    { id: 'google',     name: 'Google',      url: 'https://www.google.com',                     icon: 'https://logo.clearbit.com/google.com',                                                                                            glowColor: 'rgba(66,133,244,0.55)' },
+    { id: 'outlook',    name: 'Outlook',     url: 'https://outlook.cloud.microsoft/mail/?bO=1', icon: 'https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://outlook.live.com&size=256',  glowColor: 'rgba(0,120,212,0.55)'  },
+    { id: 'gitlab',     name: 'GitLab',      url: 'https://git.sunwaretechnologies.com/',        icon: 'app-icons/OIP.webp', glowColor: 'rgba(252,109,38,0.55)' },
+    { id: 'chatgpt',    name: 'ChatGPT',     url: 'https://chat.openai.com',                    icon: 'https://logo.clearbit.com/openai.com',                                                                                            glowColor: 'rgba(16,163,127,0.55)' },
+    { id: 'claude',     name: 'Claude',      url: 'https://claude.ai',                          icon: 'app-icons/claude.jpg',                                                                                                           glowColor: 'rgba(212,107,64,0.55)' },
+    { id: 'chatgpt-temp', name: 'ChatGPT Temp', url: 'https://chatgpt.com/?temporary-chat=true',  icon: 'app-icons/chatgpt-logo-chat-gpt-icon-on-black-background-free-vector.jpg',                                                       glowColor: 'rgba(16,163,127,0.55)' },
+    { id: 'greythr',    name: 'GreytHR',     url: 'https://sunwaretech.greythr.com/v3/portal/ess/home', icon: 'app-icons/unnamed.png',                                                                                                      glowColor: 'rgba(0,185,150,0.55)'  },
+    { id: 'speedtest',  name: 'Speedtest',   url: 'https://www.speedtest.net/',      icon: 'app-icons/speedtest.png',                                                                                                             glowColor: 'rgba(0,185,150,0.55)'  },
     { id: 'youtube',    name: 'YouTube',     url: 'https://www.youtube.com',         icon: 'https://logo.clearbit.com/youtube.com',                                                                                           glowColor: 'rgba(255,48,48,0.55)'  },
-    { id: 'github',     name: 'GitHub',      url: 'https://github.com',              icon: 'https://logo.clearbit.com/github.com',                                                                                            glowColor: 'rgba(0,255,65,0.55)'   },
+    { id: 'linkedin',   name: 'LinkedIn',    url: 'https://www.linkedin.com',                   icon: 'https://logo.clearbit.com/linkedin.com',                                                                                          glowColor: 'rgba(0,119,181,0.55)'  },
     { id: 'applemusic', name: 'Apple Music', url: 'https://music.apple.com',         icon: 'https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://music.apple.com&size=256',   glowColor: 'rgba(252,60,68,0.55)'  },
-    { id: 'incognito',  name: 'Incognito',   url: '', type: 'incognito',              icon: 'app-icons/fallback.svg',                                                                                                          glowColor: 'rgba(0,255,65,0.55)'   },
+    { id: 'incognito',  name: 'Incognito',   url: '', type: 'incognito',              icon: 'app-icons/incognito.jpg',                                                                                                          glowColor: 'rgba(0,255,65,0.55)'   },
   ];
 
   /* ----------------------------------------------------------
