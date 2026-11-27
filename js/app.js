@@ -7,7 +7,7 @@
 (function () {
   'use strict';
 
-  const STORAGE_VERSION = 4;   // bumped — language auto-detection + 15 colour presets
+  const STORAGE_VERSION = 9;   // bumped — local speedtest icon
   const COLS            = 6;
   const ROWS            = 2;
   const PAGE_SIZE       = COLS * ROWS;
@@ -17,18 +17,18 @@
      Page 1 apps
   ---------------------------------------------------------- */
   const PAGE1_APPS = [
-    { id: 'google',     name: 'Google',      url: 'https://www.google.com',          icon: 'https://logo.clearbit.com/google.com',                                                                                            glowColor: 'rgba(66,133,244,0.55)' },
-    { id: 'gmail',      name: 'Gmail',       url: 'https://mail.google.com',         icon: 'https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://mail.google.com&size=256',    glowColor: 'rgba(234,67,53,0.55)'  },
-    { id: 'twitter',    name: 'Twitter',     url: 'https://x.com',                   icon: 'https://logo.clearbit.com/x.com',                                                                                                 glowColor: 'rgba(200,200,200,0.40)'},
-    { id: 'chatgpt',    name: 'ChatGPT',     url: 'https://chat.openai.com',         icon: 'https://logo.clearbit.com/openai.com',                                                                                            glowColor: 'rgba(16,163,127,0.55)' },
-    { id: 'gemini',     name: 'Gemini',      url: 'https://gemini.google.com',       icon: 'https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://gemini.google.com&size=256', glowColor: 'rgba(66,133,244,0.55)' },
-    { id: 'claude',     name: 'Claude',      url: 'https://claude.ai',               icon: 'https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://claude.ai&size=256',         glowColor: 'rgba(212,107,64,0.55)' },
-    { id: 'strava',     name: 'Strava',      url: 'https://www.strava.com/dashboard',icon: 'https://logo.clearbit.com/strava.com',                                                                                            glowColor: 'rgba(252,76,2,0.55)'   },
-    { id: 'speedtest',  name: 'Speedtest',   url: 'https://www.speedtest.net/',      icon: 'https://logo.clearbit.com/speedtest.net',                                                                                         glowColor: 'rgba(0,185,150,0.55)'  },
+    { id: 'google',     name: 'Google',      url: 'https://www.google.com',                     icon: 'https://logo.clearbit.com/google.com',                                                                                            glowColor: 'rgba(66,133,244,0.55)' },
+    { id: 'outlook',    name: 'Outlook',     url: 'https://outlook.cloud.microsoft/mail/?bO=1', icon: 'https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://outlook.live.com&size=256',  glowColor: 'rgba(0,120,212,0.55)'  },
+    { id: 'gitlab',     name: 'GitLab',      url: 'https://git.sunwaretechnologies.com/',        icon: 'app-icons/OIP.webp', glowColor: 'rgba(252,109,38,0.55)' },
+    { id: 'chatgpt',    name: 'ChatGPT',     url: 'https://chat.openai.com',                    icon: 'https://logo.clearbit.com/openai.com',                                                                                            glowColor: 'rgba(16,163,127,0.55)' },
+    { id: 'claude',     name: 'Claude',      url: 'https://claude.ai',                          icon: 'app-icons/claude.jpg',                                                                                                           glowColor: 'rgba(212,107,64,0.55)' },
+    { id: 'chatgpt-temp', name: 'ChatGPT Temp', url: 'https://chatgpt.com/?temporary-chat=true',  icon: 'app-icons/chatgpt-logo-chat-gpt-icon-on-black-background-free-vector.jpg',                                                       glowColor: 'rgba(16,163,127,0.55)' },
+    { id: 'greythr',    name: 'GreytHR',     url: 'https://sunwaretech.greythr.com/v3/portal/ess/home', icon: 'app-icons/unnamed.png',                                                                                                      glowColor: 'rgba(0,185,150,0.55)'  },
+    { id: 'speedtest',  name: 'Speedtest',   url: 'https://www.speedtest.net/',      icon: 'app-icons/speedtest.png',                                                                                                             glowColor: 'rgba(0,185,150,0.55)'  },
     { id: 'youtube',    name: 'YouTube',     url: 'https://www.youtube.com',         icon: 'https://logo.clearbit.com/youtube.com',                                                                                           glowColor: 'rgba(255,48,48,0.55)'  },
-    { id: 'github',     name: 'GitHub',      url: 'https://github.com',              icon: 'https://logo.clearbit.com/github.com',                                                                                            glowColor: 'rgba(0,255,65,0.55)'   },
+    { id: 'linkedin',   name: 'LinkedIn',    url: 'https://www.linkedin.com',                   icon: 'https://logo.clearbit.com/linkedin.com',                                                                                          glowColor: 'rgba(0,119,181,0.55)'  },
     { id: 'applemusic', name: 'Apple Music', url: 'https://music.apple.com',         icon: 'https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://music.apple.com&size=256',   glowColor: 'rgba(252,60,68,0.55)'  },
-    { id: 'incognito',  name: 'Incognito',   url: '', type: 'incognito',              icon: 'app-icons/fallback.svg',                                                                                                          glowColor: 'rgba(0,255,65,0.55)'   },
+    { id: 'incognito',  name: 'Incognito',   url: '', type: 'incognito',              icon: 'app-icons/incognito.jpg',                                                                                                          glowColor: 'rgba(0,255,65,0.55)'   },
   ];
 
   /* ----------------------------------------------------------
@@ -61,6 +61,7 @@
   let glowEnabled     = 'off';
   let charSetKey      = 'classic';
   let density         = '90';
+  let streamGap       = '50';
   let tileLabels      = 'hover';
   let showClock       = true;
   let idleFloat       = true;
@@ -77,25 +78,38 @@
   function loadSettings() {
     return new Promise(resolve => {
       if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.sync.get(['tileSize','bgSpeed','glowEnabled','charSetKey','density','tileLabels',
+        chrome.storage.sync.get(['tileSize','bgSpeed','glowEnabled','charSetKey','density','streamGap','tileLabels',
                                   'showClock','idleFloat','idleGlowOn','clockFormat','storageVersion'], data => {
           if (data.storageVersion !== STORAGE_VERSION) {
-            tileSize = 'large'; bgSpeed = '80'; glowEnabled = 'off';
-            charSetKey = 'classic'; density = '90'; tileLabels = 'hover';
-            showClock = true; idleFloat = true; idleGlowOn = false; clockFormat = '24h';
-            chrome.storage.sync.clear(() => chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION }));
+            // Preserve any existing user settings — only fill in missing ones
+            tileSize    = data.tileSize    || 'large';
+            const rawSpeed = data.bgSpeed  || '80';
+            const legacyMap = { slow: '8', normal: '40', fast: '80' };
+            bgSpeed     = legacyMap[rawSpeed] || rawSpeed;
+            glowEnabled = data.glowEnabled || 'off';
+            charSetKey  = data.charSetKey  || 'classic';
+            const rawDensity = data.density || '90';
+            const densityMap = { sparse: '35', normal: '65', dense: '90' };
+            density     = densityMap[rawDensity] || rawDensity;
+            tileLabels  = data.tileLabels  || 'hover';
+            showClock   = data.showClock   !== undefined ? data.showClock   : true;
+            idleFloat   = data.idleFloat   !== undefined ? data.idleFloat   : true;
+            idleGlowOn  = data.idleGlowOn  !== undefined ? data.idleGlowOn  : false;
+            clockFormat = data.clockFormat || '24h';
+            // Just stamp the new version, keep everything else
+            chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, streamGap, tileLabels,
+              showClock, idleFloat, idleGlowOn, clockFormat, storageVersion: STORAGE_VERSION });
           } else {
             tileSize   = data.tileSize   || 'large';
-            // Convert legacy named speeds ('fast','normal','slow') to numeric
             const rawSpeed = data.bgSpeed || '80';
             const legacyMap = { slow: '8', normal: '40', fast: '80' };
             bgSpeed    = legacyMap[rawSpeed] || rawSpeed;
             glowEnabled= data.glowEnabled|| 'off';
             charSetKey = data.charSetKey || 'classic';
-            // Convert legacy named density ('sparse','normal','dense') to numeric
             const rawDensity = data.density || '90';
             const densityMap = { sparse: '35', normal: '65', dense: '90' };
             density    = densityMap[rawDensity] || rawDensity;
+            streamGap  = data.streamGap  || '50';
             tileLabels = data.tileLabels || 'hover';
             showClock   = data.showClock   !== undefined ? data.showClock   : true;
             idleFloat   = data.idleFloat   !== undefined ? data.idleFloat   : true;
@@ -110,7 +124,7 @@
 
   function saveSettings() {
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, tileLabels,
+      chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, streamGap, tileLabels,
         showClock, idleFloat, idleGlowOn, clockFormat, storageVersion: STORAGE_VERSION });
     }
   }
@@ -377,6 +391,24 @@
     });
   }
 
+  // Stream gap slider
+  const gapSlider = document.getElementById('gap-slider');
+
+  function syncGapSlider() {
+    if (!gapSlider) return;
+    const pct = ((+gapSlider.value) / 100) * 100;
+    gapSlider.style.setProperty('--fill-pct', pct.toFixed(1) + '%');
+  }
+
+  if (gapSlider) {
+    gapSlider.addEventListener('input', () => {
+      streamGap = gapSlider.value;
+      syncGapSlider();
+      document.dispatchEvent(new CustomEvent('matrixStreamGapChange', { detail: streamGap }));
+      saveSettings();
+    });
+  }
+
   // Glow — toggle switch
   const glowToggle = document.getElementById('glow-toggle');
   if (glowToggle) {
@@ -447,6 +479,10 @@
     // Sync density slider
     const densitySlider = document.getElementById('density-slider');
     if (densitySlider) { densitySlider.value = density; syncDensitySlider(); }
+    // Sync gap slider
+    const gapSlider = document.getElementById('gap-slider');
+    if (gapSlider) { gapSlider.value = streamGap; syncGapSlider(); }
+    document.dispatchEvent(new CustomEvent('matrixStreamGapChange', { detail: streamGap }));
     // Sync toggle switches
     const glowToggle = document.getElementById('glow-toggle');
     if (glowToggle) glowToggle.checked = glowEnabled === 'on';

@@ -209,21 +209,14 @@ body {
 
 .tile__name { display: none; }
 
-body.labels-always .tile__tooltip {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
 .tile__tooltip {
-  position: absolute;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%) translateY(6px);
-  background: rgba(0, 0, 0, 0.88);
+  position: relative;
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   color: rgba(0, 255, 65, 0.90);
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 500;
   letter-spacing: 0.05em;
   padding: 3px 10px;
@@ -232,11 +225,13 @@ body.labels-always .tile__tooltip {
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.20s ease, transform 0.20s ease;
+  transition: opacity 0.20s ease;
   z-index: 20;
 }
 
-.tile:hover .tile__tooltip { opacity: 1; transform: translateX(-50%) translateY(0); }
+.tile:hover .tile__tooltip { opacity: 1; }
+
+body.labels-always .tile__tooltip { opacity: 1; }
 
 .tile__remove {
   position: absolute;
