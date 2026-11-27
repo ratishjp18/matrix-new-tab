@@ -125,6 +125,13 @@
   let neoTimer = 90 + Math.random() * 90, neoPhase = 'idle',
       neoOpacity = 0, neoEl = null;
 
+  /* stream gap: 0 = tight/continuous, 1 = very spread/staggered */
+  let streamGap = 0.5;
+
+  document.addEventListener('matrixStreamGapChange', e => {
+    streamGap = Math.max(0, Math.min(1, parseFloat(e.detail) / 100));
+  });
+
   /* ============================================================
      HELPERS
      ============================================================ */
@@ -209,32 +216,12 @@
       }
 
       const speed = 0.4 + Math.random() * 1.1;
-
-      /* ── Warm start ──────────────────────────────────────────
-         Half the columns seed their stream mid-screen so the
-         animation is visually active from frame 1. The other
-         half start above the viewport for natural stagger.      */
-      if (Math.random() < 0.5) {
-        // Start somewhere in the visible area
-        const headRow = (Math.random() * rows) | 0;
-        streams[c] = { y: headRow, speed };
-
-        // Pre-paint the trail above the head with decayed brightness
-        for (let r = headRow; r >= 0; r--) {
-          const dist  = headRow - r;             // 0 at head, increases upward
-          const b     = Math.pow(DECAY, dist);   // brightness falls off with distance
-          if (b < THRESH) break;                 // too dim, stop pre-seeding
-          const idx = c * rows + r;
-          gBright[idx] = b;
-          // char already randomised in initGrid
-        }
-      } else {
-        // Start above viewport — full natural drop
-        streams[c] = {
-          y:     -((Math.random() * rows) | 0),
-          speed,
-        };
-      }
+      /* Spread streams across a wide stagger window so columns
+         start at very different times — not all simultaneously. */
+      streams[c] = {
+        y: -(Math.random() * rows * 2.5),
+        speed,
+      };
     }
   }
 
@@ -335,7 +322,8 @@
 
         /* Reset when head exits bottom */
         if (s.y > rows + 2) {
-          s.y     = -(1 + Math.random() * 3);   // very short pause, restart quickly
+          const gap = 2 + Math.random() * (rows * 0.5 + rows * 2.0 * streamGap);
+          s.y     = -gap;
           s.speed = 0.4 + Math.random() * 1.1;
         }
       }

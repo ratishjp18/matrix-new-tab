@@ -61,6 +61,7 @@
   let glowEnabled     = 'off';
   let charSetKey      = 'classic';
   let density         = '90';
+  let streamGap       = '50';
   let tileLabels      = 'hover';
   let showClock       = true;
   let idleFloat       = true;
@@ -77,25 +78,38 @@
   function loadSettings() {
     return new Promise(resolve => {
       if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.sync.get(['tileSize','bgSpeed','glowEnabled','charSetKey','density','tileLabels',
+        chrome.storage.sync.get(['tileSize','bgSpeed','glowEnabled','charSetKey','density','streamGap','tileLabels',
                                   'showClock','idleFloat','idleGlowOn','clockFormat','storageVersion'], data => {
           if (data.storageVersion !== STORAGE_VERSION) {
-            tileSize = 'large'; bgSpeed = '80'; glowEnabled = 'off';
-            charSetKey = 'classic'; density = '90'; tileLabels = 'hover';
-            showClock = true; idleFloat = true; idleGlowOn = false; clockFormat = '24h';
-            chrome.storage.sync.clear(() => chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, tileLabels, storageVersion: STORAGE_VERSION }));
+            // Preserve any existing user settings — only fill in missing ones
+            tileSize    = data.tileSize    || 'large';
+            const rawSpeed = data.bgSpeed  || '80';
+            const legacyMap = { slow: '8', normal: '40', fast: '80' };
+            bgSpeed     = legacyMap[rawSpeed] || rawSpeed;
+            glowEnabled = data.glowEnabled || 'off';
+            charSetKey  = data.charSetKey  || 'classic';
+            const rawDensity = data.density || '90';
+            const densityMap = { sparse: '35', normal: '65', dense: '90' };
+            density     = densityMap[rawDensity] || rawDensity;
+            tileLabels  = data.tileLabels  || 'hover';
+            showClock   = data.showClock   !== undefined ? data.showClock   : true;
+            idleFloat   = data.idleFloat   !== undefined ? data.idleFloat   : true;
+            idleGlowOn  = data.idleGlowOn  !== undefined ? data.idleGlowOn  : false;
+            clockFormat = data.clockFormat || '24h';
+            // Just stamp the new version, keep everything else
+            chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, streamGap, tileLabels,
+              showClock, idleFloat, idleGlowOn, clockFormat, storageVersion: STORAGE_VERSION });
           } else {
             tileSize   = data.tileSize   || 'large';
-            // Convert legacy named speeds ('fast','normal','slow') to numeric
             const rawSpeed = data.bgSpeed || '80';
             const legacyMap = { slow: '8', normal: '40', fast: '80' };
             bgSpeed    = legacyMap[rawSpeed] || rawSpeed;
             glowEnabled= data.glowEnabled|| 'off';
             charSetKey = data.charSetKey || 'classic';
-            // Convert legacy named density ('sparse','normal','dense') to numeric
             const rawDensity = data.density || '90';
             const densityMap = { sparse: '35', normal: '65', dense: '90' };
             density    = densityMap[rawDensity] || rawDensity;
+            streamGap  = data.streamGap  || '50';
             tileLabels = data.tileLabels || 'hover';
             showClock   = data.showClock   !== undefined ? data.showClock   : true;
             idleFloat   = data.idleFloat   !== undefined ? data.idleFloat   : true;
@@ -110,7 +124,7 @@
 
   function saveSettings() {
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, tileLabels,
+      chrome.storage.sync.set({ tileSize, bgSpeed, glowEnabled, charSetKey, density, streamGap, tileLabels,
         showClock, idleFloat, idleGlowOn, clockFormat, storageVersion: STORAGE_VERSION });
     }
   }
@@ -377,6 +391,24 @@
     });
   }
 
+  // Stream gap slider
+  const gapSlider = document.getElementById('gap-slider');
+
+  function syncGapSlider() {
+    if (!gapSlider) return;
+    const pct = ((+gapSlider.value) / 100) * 100;
+    gapSlider.style.setProperty('--fill-pct', pct.toFixed(1) + '%');
+  }
+
+  if (gapSlider) {
+    gapSlider.addEventListener('input', () => {
+      streamGap = gapSlider.value;
+      syncGapSlider();
+      document.dispatchEvent(new CustomEvent('matrixStreamGapChange', { detail: streamGap }));
+      saveSettings();
+    });
+  }
+
   // Glow — toggle switch
   const glowToggle = document.getElementById('glow-toggle');
   if (glowToggle) {
@@ -447,6 +479,10 @@
     // Sync density slider
     const densitySlider = document.getElementById('density-slider');
     if (densitySlider) { densitySlider.value = density; syncDensitySlider(); }
+    // Sync gap slider
+    const gapSlider = document.getElementById('gap-slider');
+    if (gapSlider) { gapSlider.value = streamGap; syncGapSlider(); }
+    document.dispatchEvent(new CustomEvent('matrixStreamGapChange', { detail: streamGap }));
     // Sync toggle switches
     const glowToggle = document.getElementById('glow-toggle');
     if (glowToggle) glowToggle.checked = glowEnabled === 'on';
